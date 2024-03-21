@@ -1,0 +1,25 @@
+{
+  "name": "btc-staking-ts",
+  "version": "0.0.1",
+  "description": "",
+  "module": "dist/index.esm.js",
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "generate-types": "dts-bundle-generator -o ./dist/index.d.ts ./src/index.ts",
+    "build": "node build.js && npm run generate-types",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist/*"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "dts-bundle-generator": "^9.3.1",
+    "esbuild": "^0.20.2",
+    "typescript": "^5.4.2"
+  }
+}
