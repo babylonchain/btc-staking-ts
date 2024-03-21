@@ -1,20 +1,22 @@
-import { build } from "esbuild"
+import { build } from "esbuild";
+import pkg from "./package.json" assert { type: "json" };
+const { dependencies } = pkg;
 
 const shared = {
   entryPoints: ["src/index.ts"],
   bundle: true,
-  minify: true
-}
+  external: Object.keys(dependencies || {}),
+};
 
 build({
   ...shared,
   platform: "node", // for CJS
-  outfile: "dist/index.js"
-})
+  outfile: "dist/index.cjs",
+});
 
 build({
   ...shared,
-  platform: "neutral", // for ESM
-  outfile: "dist/index.esm.js",
-  format: "esm"
-})
+  platform: "node", // for ESM
+  outfile: "dist/index.js",
+  format: "esm",
+});

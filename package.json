@@ -2,7 +2,7 @@
   "name": "btc-staking-ts",
   "version": "0.0.1",
   "description": "",
-  "module": "dist/index.esm.js",
+  "module": "dist/index.js",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "type": "module",
@@ -18,8 +18,16 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/node": "^20.11.30",
     "dts-bundle-generator": "^9.3.1",
     "esbuild": "^0.20.2",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.5",
     "typescript": "^5.4.2"
+  },
+  "dependencies": {
+    "@bitcoinerlab/secp256k1": "^1.1.1",
+    "bitcoinjs-lib": "^6.1.5"
   }
 }
