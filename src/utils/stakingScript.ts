@@ -19,15 +19,19 @@ export class StakingScriptData {
     finalityProviderKeys: Buffer[],
     covenantKeys: Buffer[],
     covenantThreshold: number,
-    stakingTime: number,
-    unbondingTime: number,
+    // The staking period denoted as a number of BTC blocks.
+    stakingTimelock: number,
+    // The unbonding period denoted as a number of BTC blocks.
+    // This value should be more than equal than the minimum unbonding time of the
+    // Babylon system.
+    unbondingTimelock: number,
   ) {
     this.stakerKey = stakerKey;
     this.finalityProviderKeys = finalityProviderKeys;
     this.covenantKeys = covenantKeys;
     this.covenantThreshold = covenantThreshold;
-    this.stakingTime = stakingTime;
-    this.unbondingTime = unbondingTime;
+    this.stakingTime = stakingTimelock;
+    this.unbondingTime = unbondingTimelock;
   }
 
   validate(): boolean {
