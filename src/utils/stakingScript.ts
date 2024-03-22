@@ -7,8 +7,8 @@ export class StakingScriptData {
   finalityProviderKeys: Buffer[];
   covenantKeys: Buffer[];
   covenantThreshold: number;
-  stakingTime: number;
-  unbondingTime: number;
+  stakingTimeLock: number;
+  unbondingTimeLock: number;
 
   constructor(
     // The `stakerKey` is the public key of the staker without the coordinate bytes.
@@ -30,8 +30,8 @@ export class StakingScriptData {
     this.finalityProviderKeys = finalityProviderKeys;
     this.covenantKeys = covenantKeys;
     this.covenantThreshold = covenantThreshold;
-    this.stakingTime = stakingTimelock;
-    this.unbondingTime = unbondingTimelock;
+    this.stakingTimeLock = stakingTimelock;
+    this.unbondingTimeLock = unbondingTimelock;
   }
 
   validate(): boolean {
@@ -58,7 +58,7 @@ export class StakingScriptData {
       return false;
     }
     // check that maximum value for staking time is not greater than uint16
-    if (this.stakingTime > 65535) {
+    if (this.stakingTimeLock > 65535) {
       return false;
     }
     return true;
@@ -78,7 +78,7 @@ export class StakingScriptData {
     return script.compile([
       this.stakerKey,
       opcodes.OP_CHECKSIGVERIFY,
-      script.number.encode(this.stakingTime),
+      script.number.encode(this.stakingTimeLock),
       opcodes.OP_CHECKSEQUENCEVERIFY,
     ]);
   }
@@ -92,7 +92,7 @@ export class StakingScriptData {
     return script.compile([
       this.stakerKey,
       opcodes.OP_CHECKSIGVERIFY,
-      script.number.encode(this.unbondingTime),
+      script.number.encode(this.unbondingTimeLock),
       opcodes.OP_CHECKSEQUENCEVERIFY,
     ]);
   }
@@ -141,7 +141,7 @@ export class StakingScriptData {
   // Creates the data embed script of the form:
   //   OP_RETURN || <serializedStakingData>
   // where serializedStakingData is the concatenation of:
-  //   MagicBytes || Version || StakerPublicKey || FinalityProviderPublicKey || StakingTime
+  //   MagicBytes || Version || StakerPublicKey || FinalityProviderPublicKey || StakingTimeLock
   buildDataEmbedScript(): Buffer {
     // 4 bytes for magic bytes
     const magicBytes = Buffer.from("01020304", "hex");
@@ -149,15 +149,15 @@ export class StakingScriptData {
     const version = Buffer.alloc(1);
     version.writeUInt8(0);
     // 2 bytes for staking time
-    const stakingTime = Buffer.alloc(2);
+    const stakingTimeLock = Buffer.alloc(2);
     // big endian
-    stakingTime.writeUInt16BE(this.stakingTime);
+    stakingTimeLock.writeUInt16BE(this.stakingTimeLock);
     const serializedStakingData = Buffer.concat([
       magicBytes,
       version,
       this.stakerKey,
       this.finalityProviderKeys[0],
-      stakingTime,
+      stakingTimeLock,
     ]);
     return script.compile([opcodes.OP_RETURN, serializedStakingData]);
   }
