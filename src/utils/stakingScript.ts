@@ -62,10 +62,10 @@ export class StakingScriptData {
 
   // Only holder of private key for given pubKey can spend after relative lock time
   // Creates the timelock script in the form:
-  // <stakerPubKey>
-  // OP_CHECKSIGVERIFY
-  // <stakingTimeBlocks>
-  // OP_CHECKSEQUENCEVERIFY
+  //   <stakerPubKey>
+  //   OP_CHECKSIGVERIFY
+  //   <stakingTimeBlocks>
+  //   OP_CHECKSEQUENCEVERIFY
   buildTimelockScript(): Buffer {
     return script.compile([
       this.stakerKey,
@@ -76,10 +76,10 @@ export class StakingScriptData {
   }
 
   // Creates the unbonding timelock script in the form:
-  // <stakerPubKey>
-  // OP_CHECKSIGVERIFY
-  // <unbondingTimeBlocks>
-  // OP_CHECKSEQUENCEVERIFY
+  //   <stakerPubKey>
+  //   OP_CHECKSIGVERIFY
+  //   <unbondingTimeBlocks>
+  //   OP_CHECKSEQUENCEVERIFY
   buildUnbondingTimelockScript(): Buffer {
     return script.compile([
       this.stakerKey,
@@ -90,9 +90,9 @@ export class StakingScriptData {
   }
 
   // Creates the unbonding script of the form:
-  // buildSingleKeyScript(stakerPk, true) ||
-  // buildMultiKeyScript(covenantPks, covenantThreshold, false)
-  // || means combining the scripts
+  //   buildSingleKeyScript(stakerPk, true) ||
+  //   buildMultiKeyScript(covenantPks, covenantThreshold, false)
+  //   || means combining the scripts
   buildUnbondingScript(): Buffer {
     return Buffer.concat([
       this.buildSingleKeyScript(this.stakerKey, true),
@@ -105,9 +105,9 @@ export class StakingScriptData {
   }
 
   // Creates the slashing script of the form:
-  // buildSingleKeyScript(stakerPk, true) ||
-  // buildMultiKeyScript(finalityProviderPKs, 1, true) ||
-  // buildMultiKeyScript(covenantPks, covenantThreshold, false)
+  //   buildSingleKeyScript(stakerPk, true) ||
+  //   buildMultiKeyScript(finalityProviderPKs, 1, true) ||
+  //   buildMultiKeyScript(covenantPks, covenantThreshold, false)
   // || means combining the scripts
   buildSlashingScript(): Buffer {
     return Buffer.concat([
@@ -131,9 +131,9 @@ export class StakingScriptData {
   }
 
   // Creates the data embed script of the form:
-  // OP_RETURN || <serializedStakingData>
+  //   OP_RETURN || <serializedStakingData>
   // where serializedStakingData is the concatenation of:
-  // MagicBytes || Version || StakerPublicKey || FinalityProviderPublicKey || StakingTime
+  //   MagicBytes || Version || StakerPublicKey || FinalityProviderPublicKey || StakingTime
   buildDataEmbedScript(): Buffer {
     // 4 bytes for magic bytes
     const magicBytes = Buffer.from("01020304", "hex");
@@ -176,8 +176,8 @@ export class StakingScriptData {
 
   // buildSingleKeyScript creates a single key script
   // Creates a script of the form:
-  // <pk> OP_CHECKSIGVERIFY (if withVerify is true)
-  // <pk> OP_CHECKSIG (if withVerify is false)
+  //   <pk> OP_CHECKSIGVERIFY (if withVerify is true)
+  //   <pk> OP_CHECKSIG (if withVerify is false)
   buildSingleKeyScript(pk: Buffer, withVerify: boolean): Buffer {
     return script.compile([
       pk,
@@ -189,8 +189,8 @@ export class StakingScriptData {
   // It validates whether provided keys are unique and the threshold is not greater than number of keys
   // If there is only one key provided it will return single key sig script
   // Creates a script of the form:
-  // <pk1> OP_CHEKCSIG <pk2> OP_CHECKSIGADD <pk3> OP_CHECKSIGADD ... <pkN> OP_CHECKSIGADD <threshold> OP_GREATERTHANOREQUAL
-  // <withVerify -> OP_VERIFY>
+  //   <pk1> OP_CHEKCSIG <pk2> OP_CHECKSIGADD <pk3> OP_CHECKSIGADD ... <pkN> OP_CHECKSIGADD <threshold> OP_GREATERTHANOREQUAL
+  //   <withVerify -> OP_VERIFY>
   buildMultiKeyScript(
     pks: Buffer[],
     threshold: number,
