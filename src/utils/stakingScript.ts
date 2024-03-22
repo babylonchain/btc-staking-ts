@@ -11,6 +11,7 @@ export class StakingScriptData {
   unbondingTime: number;
 
   constructor(
+    // The `stakerKey` is the public key of the staker without the coordinate bytes.
     stakerKey: Buffer,
     finalityProviderKeys: Buffer[],
     covenantKeys: Buffer[],
