@@ -9,7 +9,7 @@ import {
 import { Taptree } from "bitcoinjs-lib/src/types";
 
 import { internalPubkey } from "./constants/internalPubkey";
-import { initBTCCurve } from "./utils/initBTCCurve";
+import { initBTCCurve } from "./utils/curve";
 import { UTXO } from "./types/UTXO";
 
 export { initBTCCurve };
