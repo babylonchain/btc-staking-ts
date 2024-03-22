@@ -17,7 +17,13 @@ export class StakingScriptData {
     // the stake will be delegated to.
     // Currently, Babylon does not support restaking, so this should contain only a single item.
     finalityProviderKeys: Buffer[],
+    // A list of the public keys without the coordinate bytes corresponding to
+    // the covenant emulators.
+    // This is a parameter of the Babylon system and should be retrieved from there.
     covenantKeys: Buffer[],
+    // The number of covenant emulator signatures required for a transaction
+    // to be valid.
+    // This is a parameter of the Babylon system and should be retrieved from there.
     covenantThreshold: number,
     // The staking period denoted as a number of BTC blocks.
     stakingTimelock: number,
