@@ -1,5 +1,4 @@
 import {
-  initEccLib,
   script,
   payments,
   Psbt,
@@ -8,15 +7,12 @@ import {
   networks,
 } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
-import ecc from "@bitcoinerlab/secp256k1";
 
 import { internalPubkey } from "./constants/internalPubkey";
+import { initBTCCurve } from "./utils/initBTCCurve";
 import { UTXO } from "./types/UTXO";
 
-export function initBTCCurve() {
-  // Initialize elliptic curve library
-  initEccLib(ecc);
-}
+export { initBTCCurve };
 
 // StakingScriptData is a class that holds the data required for the BTC Staking Script
 // and exposes methods for converting it into useful formats
