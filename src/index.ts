@@ -10,12 +10,11 @@ export { initBTCCurve, StakingScriptData };
 
 // stakingTransaction constructs a BTC Staking transaction
 // - Outputs:
-//  - The first one corresponds to the staking script with a certain amount
-//  - The second one corresponds to the data embed script
-//  - The third one corresponds to the change from spending the amount and the transaction fee
-export function stakingTransactionDataEmbed(
+//   - The first one corresponds to the staking script with a certain amount
+//   - The second one corresponds to the change from spending the amount and the transaction fee
+//   - In case of data embed script, it will be added as the second output, fee as the third
+export function stakingTransaction(
   timelockScript: Buffer,
-  dataEmbedScript: Buffer,
   unbondingScript: Buffer,
   slashingScript: Buffer,
   amount: number,
@@ -24,12 +23,13 @@ export function stakingTransactionDataEmbed(
   inputUTXOs: UTXO[],
   network: networks.Network,
   publicKeyNoCoord?: Buffer,
+  dataEmbedScript?: Buffer,
 ): Psbt {
   // Create a partially signed transaction
   const psbt = new Psbt({ network });
   // Add the UTXOs provided as inputs to the transaction
-  var inputsSum = 0;
-  for (var i = 0; i < inputUTXOs.length; ++i) {
+  let inputsSum = 0;
+  for (let i = 0; i < inputUTXOs.length; ++i) {
     const input = inputUTXOs[i];
     psbt.addInput({
       hash: input.txid,
@@ -63,74 +63,15 @@ export function stakingTransactionDataEmbed(
     address: stakingOutput.address!,
     value: amount,
   });
-  // Add the data embed output to the transaction
-  psbt.addOutput({
-    script: dataEmbedScript,
-    value: 0,
-  });
 
-  // Add a change output only if there's any amount leftover from the inputs
-  if (inputsSum > amount + fee) {
+  if (dataEmbedScript) {
+    // Add the data embed output to the transaction
     psbt.addOutput({
-      address: changeAddress,
-      value: inputsSum - (amount + fee),
+      script: dataEmbedScript,
+      value: 0,
     });
   }
 
-  return psbt;
-}
-
-// stakingTransaction constructs a BTC Staking transaction
-// - Outputs:
-//   - The first one corresponds to the staking script with a certain amount
-//   - The second one corresponds to the change from spending the amount and the transaction fee
-export function stakingTransaction(
-  timelockScript: Buffer,
-  unbondingScript: Buffer,
-  slashingScript: Buffer,
-  amount: number,
-  fee: number,
-  changeAddress: string,
-  inputUTXOs: UTXO[],
-  network: networks.Network,
-  publicKeyNoCoord?: Buffer,
-): Psbt {
-  // Create a partially signed transaction
-  const psbt = new Psbt({ network });
-  // Add the UTXOs provided as inputs to the transaction
-  var inputsSum = 0;
-  for (var i = 0; i < inputUTXOs.length; ++i) {
-    const input = inputUTXOs[i];
-    psbt.addInput({
-      hash: input.txid,
-      index: input.vout,
-      witnessUtxo: {
-        script: Buffer.from(input.scriptPubKey, "hex"),
-        value: input.value,
-      },
-      // this is needed only if the wallet is in taproot mode
-      ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
-    });
-    inputsSum += input.value;
-  }
-
-  const scriptTree: Taptree = [
-    {
-      output: slashingScript,
-    },
-    [{ output: unbondingScript }, { output: timelockScript }],
-  ];
-
-  // Create an pay-2-taproot (p2tr) output using the staking script
-  const stakingOutput = payments.p2tr({
-    internalPubkey,
-    scriptTree,
-    network,
-  });
-  psbt.addOutput({
-    address: stakingOutput.address!,
-    value: amount,
-  });
   // Add a change output only if there's any amount leftover from the inputs
   if (inputsSum > amount + fee) {
     psbt.addOutput({
