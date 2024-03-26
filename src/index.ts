@@ -8,7 +8,7 @@ import { UTXO } from "./types/UTXO";
 
 export { initBTCCurve, StakingScriptData };
 
-// stakingTransaction constructs a BTC Staking transaction
+// stakingTransaction constructs an unsigned BTC Staking transaction
 // - Outputs:
 //   - The first one corresponds to the staking script with a certain amount
 //   - The second one corresponds to the change from spending the amount and the transaction fee
