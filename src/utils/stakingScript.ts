@@ -1,5 +1,7 @@
 import { script, opcodes } from "bitcoinjs-lib";
 
+import { StakingScripts } from "../types/StakingScripts";
+
 // StakingScriptData is a class that holds the data required for the BTC Staking Script
 // and exposes methods for converting it into useful formats
 export class StakingScriptData {
@@ -40,6 +42,10 @@ export class StakingScriptData {
     this.unbondingTimeLock = unbondingTimelock;
   }
 
+  /**
+   * Validates the staking script.
+   * @returns {boolean} Returns true if the staking script is valid, otherwise false.
+   */
   validate(): boolean {
     // pubKeyLength denotes the length of a public key in bytes
     const pubKeyLength = 32;
@@ -74,39 +80,54 @@ export class StakingScriptData {
   // to support (re)stake to multiple finality providers
   // Covenant members are going to have multiple keys
 
-  // Only holder of private key for given pubKey can spend after relative lock time
-  // Creates the timelock script in the form:
-  //   <stakerPubKey>
-  //   OP_CHECKSIGVERIFY
-  //   <stakingTimeBlocks>
-  //   OP_CHECKSEQUENCEVERIFY
-  buildTimelockScript(): Buffer {
+  /**
+   * Builds a timelock script.
+   * @param timelock - The timelock value to encode in the script.
+   * @returns {Buffer} containing the compiled timelock script.
+   */
+  buildTimelockScript(timelock: number): Buffer {
     return script.compile([
       this.stakerKey,
       opcodes.OP_CHECKSIGVERIFY,
-      script.number.encode(this.stakingTimeLock),
+      script.number.encode(timelock),
       opcodes.OP_CHECKSEQUENCEVERIFY,
     ]);
   }
 
-  // Creates the unbonding timelock script in the form:
-  //   <stakerPubKey>
-  //   OP_CHECKSIGVERIFY
-  //   <unbondingTimeBlocks>
-  //   OP_CHECKSEQUENCEVERIFY
+  /**
+   * Builds the staking timelock script.
+   * Only holder of private key for given pubKey can spend after relative lock time
+   * Creates the timelock script in the form:
+   *    <stakerPubKey>
+   *    OP_CHECKSIGVERIFY
+   *    <stakingTimeBlocks>
+   *    OP_CHECKSEQUENCEVERIFY
+   * @returns {Buffer} The staking timelock script.
+   */
+  buildStakingTimelockScript(): Buffer {
+    return this.buildTimelockScript(this.stakingTimeLock);
+  }
+
+  /**
+   * Builds the unbonding timelock script.
+   * Creates the unbonding timelock script in the form:
+   *    <stakerPubKey>
+   *    OP_CHECKSIGVERIFY
+   *    <unbondingTimeBlocks>
+   *    OP_CHECKSEQUENCEVERIFY
+   * @returns {Buffer} The unbonding timelock script.
+   */
   buildUnbondingTimelockScript(): Buffer {
-    return script.compile([
-      this.stakerKey,
-      opcodes.OP_CHECKSIGVERIFY,
-      script.number.encode(this.unbondingTimeLock),
-      opcodes.OP_CHECKSEQUENCEVERIFY,
-    ]);
+    return this.buildTimelockScript(this.unbondingTimeLock);
   }
 
-  // Creates the unbonding script of the form:
-  //   buildSingleKeyScript(stakerPk, true) ||
-  //   buildMultiKeyScript(covenantPks, covenantThreshold, false)
-  //   || means combining the scripts
+  /**
+   * Builds the unbonding script in the form:
+   *    buildSingleKeyScript(stakerPk, true) ||
+   *    buildMultiKeyScript(covenantPks, covenantThreshold, false)
+   *    || means combining the scripts
+   * @returns {Buffer} The unbonding script.
+   */
   buildUnbondingScript(): Buffer {
     return Buffer.concat([
       this.buildSingleKeyScript(this.stakerKey, true),
@@ -118,11 +139,17 @@ export class StakingScriptData {
     ]);
   }
 
-  // Creates the slashing script of the form:
-  //   buildSingleKeyScript(stakerPk, true) ||
-  //   buildMultiKeyScript(finalityProviderPKs, 1, true) ||
-  //   buildMultiKeyScript(covenantPks, covenantThreshold, false)
-  // || means combining the scripts
+  /**
+   * Builds the slashing script for staking in the form:
+   *    buildSingleKeyScript(stakerPk, true) ||
+   *    buildMultiKeyScript(finalityProviderPKs, 1, true) ||
+   *    buildMultiKeyScript(covenantPks, covenantThreshold, false)
+   *    || means combining the scripts
+   * The slashing script is a combination of single-key and multi-key scripts.
+   * The single-key script is used for staker key verification.
+   * The multi-key script is used for finality provider key verification and covenant key verification.
+   * @returns {Buffer} The slashing script as a Buffer.
+   */
   buildSlashingScript(): Buffer {
     return Buffer.concat([
       this.buildSingleKeyScript(this.stakerKey, true),
@@ -144,10 +171,13 @@ export class StakingScriptData {
     ]);
   }
 
-  // Creates the data embed script of the form:
-  //   OP_RETURN || <serializedStakingData>
-  // where serializedStakingData is the concatenation of:
-  //   MagicBytes || Version || StakerPublicKey || FinalityProviderPublicKey || StakingTimeLock
+  /**
+   * Builds a data embed script for staking in the form:
+   *    OP_RETURN || <serializedStakingData>
+   * where serializedStakingData is the concatenation of:
+   *    MagicBytes || Version || StakerPublicKey || FinalityProviderPublicKey || StakingTimeLock
+   * @returns {Buffer} The compiled data embed script.
+   */
   buildDataEmbedScript(): Buffer {
     // 4 bytes for magic bytes
     const magicBytes = Buffer.from("01020304", "hex");
@@ -168,16 +198,13 @@ export class StakingScriptData {
     return script.compile([opcodes.OP_RETURN, serializedStakingData]);
   }
 
-  // buildScripts returns the BTC staking scripts
-  buildScripts(): {
-    timelockScript: Buffer;
-    unbondingScript: Buffer;
-    slashingScript: Buffer;
-    unbondingTimelockScript: Buffer;
-    dataEmbedScript: Buffer;
-  } {
+  /**
+   * Builds the staking scripts.
+   * @returns {StakingScripts} The staking scripts.
+   */
+  buildScripts(): StakingScripts {
     return {
-      timelockScript: this.buildTimelockScript(),
+      timelockScript: this.buildStakingTimelockScript(),
       unbondingScript: this.buildUnbondingScript(),
       slashingScript: this.buildSlashingScript(),
       unbondingTimelockScript: this.buildUnbondingTimelockScript(),
@@ -188,10 +215,15 @@ export class StakingScriptData {
   // buildSingleKeyScript and buildMultiKeyScript allow us to reuse functionality
   // for creating Bitcoin scripts for the unbonding script and the slashing script
 
-  // buildSingleKeyScript creates a single key script
-  // Creates a script of the form:
-  //   <pk> OP_CHECKSIGVERIFY (if withVerify is true)
-  //   <pk> OP_CHECKSIG (if withVerify is false)
+  /**
+   * Builds a single key script in the form:
+   * buildSingleKeyScript creates a single key script
+   *    <pk> OP_CHECKSIGVERIFY (if withVerify is true)
+   *    <pk> OP_CHECKSIG (if withVerify is false)
+   * @param pk - The public key buffer.
+   * @param withVerify - A boolean indicating whether to include the OP_CHECKSIGVERIFY opcode.
+   * @returns The compiled script buffer.
+   */
   buildSingleKeyScript(pk: Buffer, withVerify: boolean): Buffer {
     return script.compile([
       pk,
@@ -199,12 +231,18 @@ export class StakingScriptData {
     ]);
   }
 
-  // buildMultiSigScript creates a multi key script
-  // It validates whether provided keys are unique and the threshold is not greater than number of keys
-  // If there is only one key provided it will return single key sig script
-  // Creates a script of the form:
-  //   <pk1> OP_CHEKCSIG <pk2> OP_CHECKSIGADD <pk3> OP_CHECKSIGADD ... <pkN> OP_CHECKSIGADD <threshold> OP_GREATERTHANOREQUAL
-  //   <withVerify -> OP_VERIFY>
+  /**
+   * Builds a multi-key script in the form:
+   *    <pk1> OP_CHEKCSIG <pk2> OP_CHECKSIGADD <pk3> OP_CHECKSIGADD ... <pkN> OP_CHECKSIGADD <threshold> OP_GREATERTHANOREQUAL
+   *    <withVerify -> OP_VERIFY>
+   * It validates whether provided keys are unique and the threshold is not greater than number of keys
+   * If there is only one key provided it will return single key sig script
+   * @param pks - An array of public keys.
+   * @param threshold - The required number of valid signers.
+   * @param withVerify - A boolean indicating whether to include the OP_VERIFY opcode.
+   * @returns The compiled multi-key script as a Buffer.
+   * @throws {Error} If no keys are provided, if the required number of valid signers is greater than the number of provided keys, or if duplicate keys are provided.
+   */
   buildMultiKeyScript(
     pks: Buffer[],
     threshold: number,

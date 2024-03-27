@@ -8,14 +8,13 @@ import { UTXO } from "./types/UTXO";
 
 export { initBTCCurve, StakingScriptData };
 
-// stakingTransaction constructs a BTC Staking transaction
+// stakingTransaction constructs an unsigned BTC Staking transaction
 // - Outputs:
-//  - The first one corresponds to the staking script with a certain amount
-//  - The second one corresponds to the data embed script
-//  - The third one corresponds to the change from spending the amount and the transaction fee
-export function stakingTransactionDataEmbed(
+//   - The first one corresponds to the staking script with a certain amount
+//   - The second one corresponds to the change from spending the amount and the transaction fee
+//   - In case of data embed script, it will be added as the second output, fee as the third
+export function stakingTransaction(
   timelockScript: Buffer,
-  dataEmbedScript: Buffer,
   unbondingScript: Buffer,
   slashingScript: Buffer,
   amount: number,
@@ -24,12 +23,13 @@ export function stakingTransactionDataEmbed(
   inputUTXOs: UTXO[],
   network: networks.Network,
   publicKeyNoCoord?: Buffer,
+  dataEmbedScript?: Buffer,
 ): Psbt {
   // Create a partially signed transaction
   const psbt = new Psbt({ network });
   // Add the UTXOs provided as inputs to the transaction
-  var inputsSum = 0;
-  for (var i = 0; i < inputUTXOs.length; ++i) {
+  let inputsSum = 0;
+  for (let i = 0; i < inputUTXOs.length; ++i) {
     const input = inputUTXOs[i];
     psbt.addInput({
       hash: input.txid,
@@ -63,74 +63,15 @@ export function stakingTransactionDataEmbed(
     address: stakingOutput.address!,
     value: amount,
   });
-  // Add the data embed output to the transaction
-  psbt.addOutput({
-    script: dataEmbedScript,
-    value: 0,
-  });
 
-  // Add a change output only if there's any amount leftover from the inputs
-  if (inputsSum > amount + fee) {
+  if (dataEmbedScript) {
+    // Add the data embed output to the transaction
     psbt.addOutput({
-      address: changeAddress,
-      value: inputsSum - (amount + fee),
+      script: dataEmbedScript,
+      value: 0,
     });
   }
 
-  return psbt;
-}
-
-// stakingTransaction constructs a BTC Staking transaction
-// - Outputs:
-//   - The first one corresponds to the staking script with a certain amount
-//   - The second one corresponds to the change from spending the amount and the transaction fee
-export function stakingTransaction(
-  timelockScript: Buffer,
-  unbondingScript: Buffer,
-  slashingScript: Buffer,
-  amount: number,
-  fee: number,
-  changeAddress: string,
-  inputUTXOs: UTXO[],
-  network: networks.Network,
-  publicKeyNoCoord?: Buffer,
-): Psbt {
-  // Create a partially signed transaction
-  const psbt = new Psbt({ network });
-  // Add the UTXOs provided as inputs to the transaction
-  var inputsSum = 0;
-  for (var i = 0; i < inputUTXOs.length; ++i) {
-    const input = inputUTXOs[i];
-    psbt.addInput({
-      hash: input.txid,
-      index: input.vout,
-      witnessUtxo: {
-        script: Buffer.from(input.scriptPubKey, "hex"),
-        value: input.value,
-      },
-      // this is needed only if the wallet is in taproot mode
-      ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
-    });
-    inputsSum += input.value;
-  }
-
-  const scriptTree: Taptree = [
-    {
-      output: slashingScript,
-    },
-    [{ output: unbondingScript }, { output: timelockScript }],
-  ];
-
-  // Create an pay-2-taproot (p2tr) output using the staking script
-  const stakingOutput = payments.p2tr({
-    internalPubkey,
-    scriptTree,
-    network,
-  });
-  psbt.addOutput({
-    address: stakingOutput.address!,
-    value: amount,
-  });
   // Add a change output only if there's any amount leftover from the inputs
   if (inputsSum > amount + fee) {
     psbt.addOutput({
@@ -146,7 +87,7 @@ export function stakingTransaction(
 export function withdrawEarlyUnbondedTransaction(
   unbondingTimelockScript: Buffer,
   slashingScript: Buffer,
-  tx: string,
+  tx: Transaction,
   withdrawalAddress: string,
   withdrawalFee: number,
   network: networks.Network,
@@ -175,7 +116,7 @@ export function withdrawTimelockUnbondedTransaction(
   timelockScript: Buffer,
   slashingScript: Buffer,
   unbondingScript: Buffer,
-  tx: string,
+  tx: Transaction,
   withdrawalAddress: string,
   withdrawalFee: number,
   network: networks.Network,
@@ -204,7 +145,7 @@ export function withdrawTimelockUnbondedTransaction(
 export function withdrawalTransaction(
   timelockScript: Buffer,
   scriptTree: Taptree,
-  tx: string,
+  tx: Transaction,
   withdrawalAddress: string,
   withdrawalFee: number,
   network: networks.Network,
@@ -229,8 +170,6 @@ export function withdrawalTransaction(
     const wrap = decompiled[timePosition] % 16;
     timelock = wrap === 0 ? 16 : wrap;
   }
-
-  const convertedTX = Transaction.fromHex(tx);
 
   const redeem = {
     output: timelockScript,
@@ -257,12 +196,12 @@ export function withdrawalTransaction(
   psbt.setVersion(2);
 
   psbt.addInput({
-    hash: convertedTX.getHash(),
+    hash: tx.getHash(),
     index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: convertedTX.outs[outputIndex].value,
-      script: convertedTX.outs[outputIndex].script,
+      value: tx.outs[outputIndex].value,
+      script: tx.outs[outputIndex].script,
     },
     tapLeafScript: [tapLeafScript],
     sequence: timelock,
@@ -270,7 +209,7 @@ export function withdrawalTransaction(
 
   psbt.addOutput({
     address: withdrawalAddress,
-    value: convertedTX.outs[outputIndex].value - withdrawalFee,
+    value: tx.outs[outputIndex].value - withdrawalFee,
   });
 
   return psbt;
@@ -290,6 +229,7 @@ export function slashingTransaction(
   changeScript: Buffer,
   minimumFee: number,
   network: networks.Network,
+  outputIndex: number = 0,
 ): Psbt {
   const redeem = {
     output: redeemOutput,
@@ -312,7 +252,7 @@ export function slashingTransaction(
   const psbt = new Psbt({ network });
   psbt.addInput({
     hash: transaction.getHash(),
-    index: 0,
+    index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
       value: transaction.outs[0].value,
@@ -359,6 +299,7 @@ export function unbondingTransaction(
   stakingTx: Transaction,
   transactionFee: number,
   network: networks.Network,
+  outputIndex: number = 0,
 ): Psbt {
   // Build input tapleaf script
   const inputScriptTree: Taptree = [
@@ -389,7 +330,7 @@ export function unbondingTransaction(
   const psbt = new Psbt({ network });
   psbt.addInput({
     hash: stakingTx.getHash(),
-    index: 0,
+    index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
       value: stakingTx.outs[0].value,
