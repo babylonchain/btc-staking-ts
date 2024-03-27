@@ -87,7 +87,7 @@ export function stakingTransaction(
 export function withdrawEarlyUnbondedTransaction(
   unbondingTimelockScript: Buffer,
   slashingScript: Buffer,
-  tx: string,
+  tx: Transaction,
   withdrawalAddress: string,
   withdrawalFee: number,
   network: networks.Network,
@@ -116,7 +116,7 @@ export function withdrawTimelockUnbondedTransaction(
   timelockScript: Buffer,
   slashingScript: Buffer,
   unbondingScript: Buffer,
-  tx: string,
+  tx: Transaction,
   withdrawalAddress: string,
   withdrawalFee: number,
   network: networks.Network,
@@ -145,7 +145,7 @@ export function withdrawTimelockUnbondedTransaction(
 export function withdrawalTransaction(
   timelockScript: Buffer,
   scriptTree: Taptree,
-  tx: string,
+  tx: Transaction,
   withdrawalAddress: string,
   withdrawalFee: number,
   network: networks.Network,
@@ -170,8 +170,6 @@ export function withdrawalTransaction(
     const wrap = decompiled[timePosition] % 16;
     timelock = wrap === 0 ? 16 : wrap;
   }
-
-  const convertedTX = Transaction.fromHex(tx);
 
   const redeem = {
     output: timelockScript,
@@ -198,12 +196,12 @@ export function withdrawalTransaction(
   psbt.setVersion(2);
 
   psbt.addInput({
-    hash: convertedTX.getHash(),
+    hash: tx.getHash(),
     index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: convertedTX.outs[outputIndex].value,
-      script: convertedTX.outs[outputIndex].script,
+      value: tx.outs[outputIndex].value,
+      script: tx.outs[outputIndex].script,
     },
     tapLeafScript: [tapLeafScript],
     sequence: timelock,
@@ -211,7 +209,7 @@ export function withdrawalTransaction(
 
   psbt.addOutput({
     address: withdrawalAddress,
-    value: convertedTX.outs[outputIndex].value - withdrawalFee,
+    value: tx.outs[outputIndex].value - withdrawalFee,
   });
 
   return psbt;

@@ -70,7 +70,6 @@ const stakingDuration: number = 144;
 const stakingAmount: number = 1000;
 const unbondingTime: number = minUnbondingTime;
 
-
 // 3. Define the parameters for the staking transaction that will contain the
 //    staking contract:
 //    - `inputUTXOs: UTXO[]`: The list of UTXOs that will be used as an input
@@ -128,14 +127,15 @@ const {
 ```
 
 The above scripts correspond to the following:
+
 - `timelockScript`: A script that allows the Bitcoin to be retrieved only
-   through the staker's signature and the staking period being expired.
+  through the staker's signature and the staking period being expired.
 - `unbondingScript`: The script that allows on-demand unbonding.
-   Requires the staker's signature and the covenant committee's signatures.
+  Requires the staker's signature and the covenant committee's signatures.
 - `slashingScript`: The script that enables slashing.
-   It requires the staker's signature and in this phase the staker should not sign it.
+  It requires the staker's signature and in this phase the staker should not sign it.
 - `dataEmbedScript`: An `OP_RETURN` script containing all required data to
-   identify and verify the transaction as a staking transaction.
+  identify and verify the transaction as a staking transaction.
 
 ### Create a staking transaction
 
@@ -172,6 +172,7 @@ The staking script allows users to on-demand unbond their locked stake before
 the staking transaction timelock expires, subject to an unbonding period.
 
 The unbonding transaction can be created as follows:
+
 ```ts
 import { unbondingTransaction } from "btc-staking-ts";
 import { Psbt, Transaction } from "bitcoinjs-lib";
@@ -207,6 +208,7 @@ signature set, and propagates it to Bitcoin.
 For completeness, we present the alternative method in which the application
 has access to the covenant signature set. This method can be useful for testing
 purposes. It involves the following:
+
 ```ts
 // Create the full witness
 const witness = createWitness(
@@ -228,6 +230,7 @@ Withdrawing involves extracting funds for which the staking/unbonding period
 has expired from the staking/unbonding transaction.
 
 Initially, we specify the withdrawal transaction parameters.
+
 ```ts
 // The index of the staking/unbonding output in the staking/unbonding
 // transcation.
@@ -242,39 +245,43 @@ const withdrawalAddress: string = btcWallet.address;
 
 Then, we construct the withdrawal transaction.
 There are two types of withdrawal
+
 1. Withdraw funds from a staking transaction in which the timelock naturally
    expired:
+
 ```ts
-import { Psbt } from "bitcoinjs-lib";
+import { Psbt, Transaction } from "bitcoinjs-lib";
 import { withdrawTimelockUnbondedTransaction } from "btc-staking-ts";
 
-// staking transaction hex. string
-const stakingTxHex: string = "";
+// staking transaction. Transaction
+const stakingTx: Transaction = undefined;
 
-const unsignedWithdrawalTx = withdrawTimelockUnbondedTransaction(
+const unsignedWithdrawalTx: Psbt = withdrawTimelockUnbondedTransaction(
   timelockScript,
   slashingScript,
   unbondingScript,
-  stakingTxHex,
+  stakingTx,
   btcWallet.address,
   withdrawalFee,
   network,
   stakingOutputIndex,
 );
 ```
+
 2. Withdraw funds from an unbonding transaction that was submitted for early
    unbonding and the unbonding period has passed:
+
 ```ts
-import { Psbt } from "bitcoinjs-lib";
+import { Psbt, Transaction } from "bitcoinjs-lib";
 import { withdrawEarlyUnbondedTransaction } from "btc-staking-ts";
 
-// unbonding transaction hex. string
-const unbondingTxHex: string = "";
+// unbonding transaction. Transaction
+const unbondingTx: Transaction = undefined;
 
 const unsignedWithdrawalTx: Psbt = withdrawEarlyUnbondedTransaction(
   unbondingTimelockScript,
   slashingScript,
-  unbondingTxHex,
+  unbondingTx,
   withdrawalAddress,
   withdrawalFee,
   network,
@@ -292,10 +299,9 @@ performs an offence.
 following instructions can be safely ignored and are put here for
 completeness.**
 
-
-
 First, collect the parameters related to slashing.
 These are Babylon parameters and should be collected from the Babylon system.
+
 ```ts
 // The address to which the slashed funds should go to.
 const slashingAddress: string = "";
@@ -307,7 +313,9 @@ const minimumSlashingFee: number = 500;
 
 Then create and sign the slashing transaction.
 There are two types of slashing transactions:
+
 1. Slashing of the staking transaction when no unbonding has been performed:
+
 ```ts
 import { Taptree } from "bitcoinjs-lib/src/types";
 import { slashingTransaction } from "btc-staking-ts";
@@ -333,6 +341,7 @@ const unsignedSlashingTx: Psbt = slashingTransaction(
 
 const slashingTx: Promise<Transaction> = await btcWallet.signTransaction(unsignedSlashingTx: Psbt);
 ```
+
 2. Slashing of the unbonding transaction in the case of on-demand unbonding:
 
 ```ts
