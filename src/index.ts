@@ -229,6 +229,7 @@ export function slashingTransaction(
   changeScript: Buffer,
   minimumFee: number,
   network: networks.Network,
+  outputIndex: number = 0,
 ): Psbt {
   const redeem = {
     output: redeemOutput,
@@ -251,7 +252,7 @@ export function slashingTransaction(
   const psbt = new Psbt({ network });
   psbt.addInput({
     hash: transaction.getHash(),
-    index: 0,
+    index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
       value: transaction.outs[0].value,
@@ -298,6 +299,7 @@ export function unbondingTransaction(
   stakingTx: Transaction,
   transactionFee: number,
   network: networks.Network,
+  outputIndex: number = 0,
 ): Psbt {
   // Build input tapleaf script
   const inputScriptTree: Taptree = [
@@ -328,7 +330,7 @@ export function unbondingTransaction(
   const psbt = new Psbt({ network });
   psbt.addInput({
     hash: stakingTx.getHash(),
-    index: 0,
+    index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
       value: stakingTx.outs[0].value,

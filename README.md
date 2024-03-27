@@ -328,6 +328,8 @@ const slashingScriptTree: Taptree = [
   [{ output: unbondingScript }, { output: timelockScript }],
 ];
 
+const outputIndex: number = 0;
+
 const unsignedSlashingTx: Psbt = slashingTransaction(
   slashingScriptTree,
   slashingScript,
@@ -337,6 +339,7 @@ const unsignedSlashingTx: Psbt = slashingTransaction(
   unbondingTimelockScript,
   minimumSlashingFee,
   network,
+  outputIndex,
 );
 
 const slashingTx: Promise<Transaction> = await btcWallet.signTransaction(unsignedSlashingTx: Psbt);
@@ -356,9 +359,10 @@ const unbondingScriptTree: Taptree = [
 Then create unsigned unbonding slashing transaction
 
 ```ts
-import { Psbt } from "bitcoinjs-lib";
 import { Psbt, Transaction } from "bitcoinjs-lib";
 import { slashingTransaction } from "btc-staking-ts";
+
+const outputIndex: number = 0;
 
 const unsignedUnbondingSlashingTx: Psbt = slashingTransaction(
   unbondingScriptTree,
@@ -369,6 +373,7 @@ const unsignedUnbondingSlashingTx: Psbt = slashingTransaction(
   unbondingTimelockScript,
   minimumSlashingFee,
   network,
+  outputIndex
 );
 
 const unbondingSlashingTx: Promise<Transaction> = await btcWallet.signTransaction(unsignedUnbondingSlashingTx: Psbt);
