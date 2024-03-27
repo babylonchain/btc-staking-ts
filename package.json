@@ -1,7 +1,7 @@
 {
   "name": "btc-staking-ts",
   "version": "0.0.1",
-  "description": "",
+  "description": "Library exposing methods for the creation and consumption of Bitcoin transactions pertaining to Babylon's Bitcoin Staking protocol.",
   "module": "dist/index.js",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -18,8 +18,13 @@
   "files": [
     "dist/*"
   ],
-  "keywords": [],
-  "author": "",
+  "keywords": [
+      "bitcoin",
+      "staking",
+      "babylon",
+      "btc-staking"
+  ],
+  "author": "Babylonchain Inc.",
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
     "@types/node": "^20.11.30",
