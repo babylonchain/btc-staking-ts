@@ -23,6 +23,6 @@ workflows:
           filters:
             tags:
               only: /.*/
-            branches:
-              only:
-                - main
+                #            branches:
+                #              only:
+                #                - main
