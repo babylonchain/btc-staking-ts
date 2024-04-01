@@ -2,13 +2,14 @@ version: 2.1
 
 jobs:
   publish:
-    docker:
-      - image: circleci/node
+    machine:
+      image: ubuntu-2204:2022.10.1
+      resource_class: large
     steps:
       - checkout
-      - run:
-          name: Install requirements
-          command: npm install prettier
+      - node/install:
+          install-yarn: true
+          node-version: '21.7'
       - run:
           name: Auth With NPM
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
