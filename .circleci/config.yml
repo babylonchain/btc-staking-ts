@@ -13,7 +13,7 @@ jobs:
       - node/install:
           node-version: '21.7'
       - run:
-          name: Auth With NPM registry
+          name: Authenticate with NPM registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
       - run:
           name: Install requirements and publish package
