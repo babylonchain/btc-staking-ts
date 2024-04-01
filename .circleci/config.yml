@@ -7,6 +7,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install requirements
+          command: npm install prettier
+      - run:
           name: Auth With NPM
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
       - run:
