@@ -48,12 +48,15 @@ import { networks } from "bitcoinjs-lib";
 //          emulator signatures required for the staking to be activated.
 //       - `minimumUnbondingTime: number`: The minimum unbonding period
 //          allowed by the Babylon system .
+//       - `magicBytes: Buffer`: The magic bytes that are appended to the data
+//          embed script that is used to identify the staking transaction on BTC.
 //    Below, these values are hardcoded, but they should be retrieved from the
 //    Babylon system.
 
 const covenantPks: Buffer[] = covenant_pks.map((pk) => Buffer.from(pk, "hex"));
 const covenantThreshold: number = 3;
 const minUnbondingTime: number = 101;
+const magicBytes: Buffer = Buffer.from("62627434", "hex") // "bbt4" tag
 
 // 2. Define the user selected parameters of the staking contract:
 //    - `stakerPk: Buffer`: The public key without the coordinate of the
@@ -120,6 +123,7 @@ const stakingScriptData = new StakingScriptData(
   covenantThreshold,
   stakingDuration,
   minUnbondingTime,
+  magicBytes
 );
 
 const {

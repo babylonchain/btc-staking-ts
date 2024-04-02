@@ -11,6 +11,7 @@ export class StakingScriptData {
   covenantThreshold: number;
   stakingTimeLock: number;
   unbondingTimeLock: number;
+  magicBytes: Buffer;
 
   constructor(
     // The `stakerKey` is the public key of the staker without the coordinate bytes.
@@ -33,6 +34,9 @@ export class StakingScriptData {
     // This value should be more than equal than the minimum unbonding time of the
     // Babylon system.
     unbondingTimelock: number,
+    // The magic bytes used to identify the staking transaction on Babylon
+    // through the data return script
+    magicBytes: Buffer,
   ) {
     this.stakerKey = stakerKey;
     this.finalityProviderKeys = finalityProviderKeys;
@@ -40,6 +44,7 @@ export class StakingScriptData {
     this.covenantThreshold = covenantThreshold;
     this.stakingTimeLock = stakingTimelock;
     this.unbondingTimeLock = unbondingTimelock;
+    this.magicBytes = magicBytes;
   }
 
   /**
@@ -179,8 +184,6 @@ export class StakingScriptData {
    * @returns {Buffer} The compiled data embed script.
    */
   buildDataEmbedScript(): Buffer {
-    // 4 bytes for magic bytes
-    const magicBytes = Buffer.from("01020304", "hex");
     // 1 byte for version
     const version = Buffer.alloc(1);
     version.writeUInt8(0);
@@ -189,7 +192,7 @@ export class StakingScriptData {
     // big endian
     stakingTimeLock.writeUInt16BE(this.stakingTimeLock);
     const serializedStakingData = Buffer.concat([
-      magicBytes,
+      this.magicBytes,
       version,
       this.stakerKey,
       this.finalityProviderKeys[0],
