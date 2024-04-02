@@ -26,16 +26,16 @@ workflows:
     jobs:
       - require_approval:
           type: approval
-            #filters:
-            #  branches:
-            #    only:
-            #      - main
+          filters:
+            branches:
+              only:
+                - main
       - publish:
           requires:
             - require_approval
           filters:
             tags:
               only: /.*/
-                #            branches:
-                #              only:
-                #                - main
+            branches:
+              only:
+                - main
