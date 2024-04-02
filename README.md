@@ -5,7 +5,7 @@
     <p align="center"><strong>TypeScript</strong> library</p>
     <p align="center">
         <a href="https://github.com/babylonchain/btc-staking-ts/releases">
-            <img src="https://img.shields.io/badge/version-0.0.1-FF7C2B">
+            <img src="https://img.shields.io/badge/version-0.1.1-FF7C2B">
         </a>
     </p>
 </p>
