@@ -267,6 +267,10 @@ export class StakingScriptData {
     if (!pks || pks.length === 0) {
       throw new Error("No keys provided");
     }
+    // Check buffer object have expected lengths like checking pks.length
+    if (pks.some((pk) => pk.length != 32)) {
+      throw new Error("Invalid key length");
+    }
     // Verify that threshold <= len(pks)
     if (threshold > pks.length) {
       throw new Error(
