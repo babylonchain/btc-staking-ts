@@ -218,6 +218,11 @@ export class StakingScriptData {
    * @returns {StakingScripts} The staking scripts.
    */
   buildScripts(): StakingScripts {
+    // Run validation before building scripts
+    if (!this.validate()) {
+      throw new Error("Invalid script data provided");
+    }
+
     return {
       timelockScript: this.buildStakingTimelockScript(),
       unbondingScript: this.buildUnbondingScript(),
