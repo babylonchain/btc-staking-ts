@@ -38,6 +38,18 @@ export class StakingScriptData {
     // through the data return script
     magicBytes: Buffer,
   ) {
+    // Check that required input values are not missing when creating an instance of the StakingScriptData class
+    if (
+      !stakerKey ||
+      !finalityProviderKeys ||
+      !covenantKeys ||
+      !covenantThreshold ||
+      !stakingTimelock ||
+      !unbondingTimelock ||
+      !magicBytes
+    ) {
+      throw new Error("Missing required input values");
+    }
     this.stakerKey = stakerKey;
     this.finalityProviderKeys = finalityProviderKeys;
     this.covenantKeys = covenantKeys;
