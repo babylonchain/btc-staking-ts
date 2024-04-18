@@ -161,6 +161,11 @@ export function withdrawalTransaction(
     throw new Error("Withdrawal fee must be bigger than 0");
   }
 
+  // Check that outputIndex is bigger or equal to 0
+  if (outputIndex < 0) {
+    throw new Error("Output index must be bigger or equal to 0");
+  }
+
   // position of time in the timelock script
   const timePosition = 2;
   const decompiled = script.decompile(timelockScript);
@@ -246,6 +251,11 @@ export function slashingTransaction(
     throw new Error("Slashing rate and minimum fee must be bigger than 0");
   }
 
+  // Check that outputIndex is bigger or equal to 0
+  if (outputIndex < 0) {
+    throw new Error("Output index must be bigger or equal to 0");
+  }
+
   const redeem = {
     output: redeemOutput,
     redeemVersion: 192,
@@ -319,6 +329,11 @@ export function unbondingTransaction(
   // Check that transaction fee is bigger than 0
   if (transactionFee <= 0) {
     throw new Error("Unbonding fee must be bigger than 0");
+  }
+
+  // Check that outputIndex is bigger or equal to 0
+  if (outputIndex < 0) {
+    throw new Error("Output index must be bigger or equal to 0");
   }
 
   // Build input tapleaf script
