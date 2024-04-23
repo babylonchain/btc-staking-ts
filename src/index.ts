@@ -1,4 +1,11 @@
-import { script, payments, Psbt, Transaction, networks } from "bitcoinjs-lib";
+import {
+  script,
+  payments,
+  Psbt,
+  Transaction,
+  networks,
+  address,
+} from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 
 import { internalPubkey } from "./constants/internalPubkey";
@@ -30,6 +37,16 @@ export function stakingTransaction(
     throw new Error("Amount and fee must be bigger than 0");
   }
 
+  // Check whether the change address is a valid Bitcoin address.
+  if (!address.toOutputScript(changeAddress, network)) {
+    throw new Error("Invalid change address");
+  }
+
+  // Check whether the public key is valid
+  if (publicKeyNoCoord && publicKeyNoCoord.length !== 32) {
+    throw new Error("Invalid public key");
+  }
+
   // Create a partially signed transaction
   const psbt = new Psbt({ network });
   // Add the UTXOs provided as inputs to the transaction
@@ -47,6 +64,11 @@ export function stakingTransaction(
       ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
     });
     inputsSum += input.value;
+  }
+
+  // Check whether inputSum is enough to satisfy the staking amount
+  if (inputsSum < amount + fee) {
+    throw new Error("Insufficient funds");
   }
 
   const scriptTree: Taptree = [
