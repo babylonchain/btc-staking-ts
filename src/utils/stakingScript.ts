@@ -102,7 +102,7 @@ export class StakingScriptData {
    * @param timelock - The timelock value to encode in the script.
    * @returns {Buffer} containing the compiled timelock script.
    */
-  buildTimelockScript(timelock: number): Buffer {
+  #buildTimelockScript(timelock: number): Buffer {
     return script.compile([
       this.stakerKey,
       opcodes.OP_CHECKSIGVERIFY,
@@ -121,8 +121,8 @@ export class StakingScriptData {
    *    OP_CHECKSEQUENCEVERIFY
    * @returns {Buffer} The staking timelock script.
    */
-  buildStakingTimelockScript(): Buffer {
-    return this.buildTimelockScript(this.stakingTimeLock);
+  #buildStakingTimelockScript(): Buffer {
+    return this.#buildTimelockScript(this.stakingTimeLock);
   }
 
   /**
@@ -134,8 +134,8 @@ export class StakingScriptData {
    *    OP_CHECKSEQUENCEVERIFY
    * @returns {Buffer} The unbonding timelock script.
    */
-  buildUnbondingTimelockScript(): Buffer {
-    return this.buildTimelockScript(this.unbondingTimeLock);
+  #buildUnbondingTimelockScript(): Buffer {
+    return this.#buildTimelockScript(this.unbondingTimeLock);
   }
 
   /**
@@ -145,10 +145,10 @@ export class StakingScriptData {
    *    || means combining the scripts
    * @returns {Buffer} The unbonding script.
    */
-  buildUnbondingScript(): Buffer {
+  #buildUnbondingScript(): Buffer {
     return Buffer.concat([
-      this.buildSingleKeyScript(this.stakerKey, true),
-      this.buildMultiKeyScript(
+      this.#buildSingleKeyScript(this.stakerKey, true),
+      this.#buildMultiKeyScript(
         this.covenantKeys,
         this.covenantThreshold,
         false,
@@ -167,10 +167,10 @@ export class StakingScriptData {
    * The multi-key script is used for finality provider key verification and covenant key verification.
    * @returns {Buffer} The slashing script as a Buffer.
    */
-  buildSlashingScript(): Buffer {
+  #buildSlashingScript(): Buffer {
     return Buffer.concat([
-      this.buildSingleKeyScript(this.stakerKey, true),
-      this.buildMultiKeyScript(
+      this.#buildSingleKeyScript(this.stakerKey, true),
+      this.#buildMultiKeyScript(
         this.finalityProviderKeys,
         // The threshold is always 1 as we only need one
         // finalityProvider signature to perform slashing
@@ -179,7 +179,7 @@ export class StakingScriptData {
         // OP_VERIFY/OP_CHECKSIGVERIFY is added at the end
         true,
       ),
-      this.buildMultiKeyScript(
+      this.#buildMultiKeyScript(
         this.covenantKeys,
         this.covenantThreshold,
         // No need to add verify since covenants are at the end of the script
@@ -195,7 +195,7 @@ export class StakingScriptData {
    *    MagicBytes || Version || StakerPublicKey || FinalityProviderPublicKey || StakingTimeLock
    * @returns {Buffer} The compiled data embed script.
    */
-  buildDataEmbedScript(): Buffer {
+  #buildDataEmbedScript(): Buffer {
     // 1 byte for version
     const version = Buffer.alloc(1);
     version.writeUInt8(0);
@@ -224,11 +224,11 @@ export class StakingScriptData {
     }
 
     return {
-      timelockScript: this.buildStakingTimelockScript(),
-      unbondingScript: this.buildUnbondingScript(),
-      slashingScript: this.buildSlashingScript(),
-      unbondingTimelockScript: this.buildUnbondingTimelockScript(),
-      dataEmbedScript: this.buildDataEmbedScript(),
+      timelockScript: this.#buildStakingTimelockScript(),
+      unbondingScript: this.#buildUnbondingScript(),
+      slashingScript: this.#buildSlashingScript(),
+      unbondingTimelockScript: this.#buildUnbondingTimelockScript(),
+      dataEmbedScript: this.#buildDataEmbedScript(),
     };
   }
 
@@ -244,7 +244,7 @@ export class StakingScriptData {
    * @param withVerify - A boolean indicating whether to include the OP_CHECKSIGVERIFY opcode.
    * @returns The compiled script buffer.
    */
-  buildSingleKeyScript(pk: Buffer, withVerify: boolean): Buffer {
+  #buildSingleKeyScript(pk: Buffer, withVerify: boolean): Buffer {
     return script.compile([
       pk,
       withVerify ? opcodes.OP_CHECKSIGVERIFY : opcodes.OP_CHECKSIG,
@@ -263,7 +263,7 @@ export class StakingScriptData {
    * @returns The compiled multi-key script as a Buffer.
    * @throws {Error} If no keys are provided, if the required number of valid signers is greater than the number of provided keys, or if duplicate keys are provided.
    */
-  buildMultiKeyScript(
+  #buildMultiKeyScript(
     pks: Buffer[],
     threshold: number,
     withVerify: boolean,
@@ -283,7 +283,7 @@ export class StakingScriptData {
       );
     }
     if (pks.length === 1) {
-      return this.buildSingleKeyScript(pks[0], withVerify);
+      return this.#buildSingleKeyScript(pks[0], withVerify);
     }
     // keys must be sorted
     const sortedPks = pks.sort(Buffer.compare);
