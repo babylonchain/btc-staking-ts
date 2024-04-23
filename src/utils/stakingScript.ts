@@ -2,6 +2,9 @@ import { script, opcodes } from "bitcoinjs-lib";
 
 import { StakingScripts } from "../types/StakingScripts";
 
+// PK_LENGTH denotes the length of a public key in bytes
+export const PK_LENGTH = 32;
+
 // StakingScriptData is a class that holds the data required for the BTC Staking Script
 // and exposes methods for converting it into useful formats
 export class StakingScriptData {
@@ -69,25 +72,21 @@ export class StakingScriptData {
    * @returns {boolean} Returns true if the staking script is valid, otherwise false.
    */
   validate(): boolean {
-    // pubKeyLength denotes the length of a public key in bytes
-    const pubKeyLength = 32;
     // check that staker key is the correct length
-    if (this.#stakerKey.length != pubKeyLength) {
+    if (this.#stakerKey.length != PK_LENGTH) {
       return false;
     }
     // check that finalityProvider keys are the correct length
     if (
       this.#finalityProviderKeys.some(
-        (finalityProviderKey) => finalityProviderKey.length != pubKeyLength,
+        (finalityProviderKey) => finalityProviderKey.length != PK_LENGTH,
       )
     ) {
       return false;
     }
     // check that covenant keys are the correct length
     if (
-      this.#covenantKeys.some(
-        (covenantKey) => covenantKey.length != pubKeyLength,
-      )
+      this.#covenantKeys.some((covenantKey) => covenantKey.length != PK_LENGTH)
     ) {
       return false;
     }
@@ -245,6 +244,10 @@ export class StakingScriptData {
    * @returns The compiled script buffer.
    */
   #buildSingleKeyScript(pk: Buffer, withVerify: boolean): Buffer {
+    // Check public key length
+    if (pk.length != PK_LENGTH) {
+      throw new Error("Invalid key length");
+    }
     return script.compile([
       pk,
       withVerify ? opcodes.OP_CHECKSIGVERIFY : opcodes.OP_CHECKSIG,
@@ -273,7 +276,7 @@ export class StakingScriptData {
       throw new Error("No keys provided");
     }
     // Check buffer object have expected lengths like checking pks.length
-    if (pks.some((pk) => pk.length != 32)) {
+    if (pks.some((pk) => pk.length != PK_LENGTH)) {
       throw new Error("Invalid key length");
     }
     // Verify that threshold <= len(pks)

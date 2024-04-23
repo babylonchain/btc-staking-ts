@@ -10,7 +10,7 @@ import { Taptree } from "bitcoinjs-lib/src/types";
 
 import { internalPubkey } from "./constants/internalPubkey";
 import { initBTCCurve } from "./utils/curve";
-import { StakingScriptData } from "./utils/stakingScript";
+import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
 import { UTXO } from "./types/UTXO";
 
 export { initBTCCurve, StakingScriptData };
@@ -43,7 +43,7 @@ export function stakingTransaction(
   }
 
   // Check whether the public key is valid
-  if (publicKeyNoCoord && publicKeyNoCoord.length !== 32) {
+  if (publicKeyNoCoord && publicKeyNoCoord.length !== PK_LENGTH) {
     throw new Error("Invalid public key");
   }
 
