@@ -57,6 +57,11 @@ export class StakingScriptData {
     this.#stakingTimeLock = stakingTimelock;
     this.#unbondingTimeLock = unbondingTimelock;
     this.#magicBytes = magicBytes;
+
+    // Run the validate method to check if the provided script data is valid
+    if (!this.validate()) {
+      throw new Error("Invalid script data provided");
+    }
   }
 
   /**
@@ -218,11 +223,6 @@ export class StakingScriptData {
    * @returns {StakingScripts} The staking scripts.
    */
   buildScripts(): StakingScripts {
-    // Run validation before building scripts
-    if (!this.validate()) {
-      throw new Error("Invalid script data provided");
-    }
-
     return {
       timelockScript: this.buildStakingTimelockScript(),
       unbondingScript: this.buildUnbondingScript(),
