@@ -1,9 +1,16 @@
-import { script, payments, Psbt, Transaction, networks } from "bitcoinjs-lib";
+import {
+  script,
+  payments,
+  Psbt,
+  Transaction,
+  networks,
+  address,
+} from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 
 import { internalPubkey } from "./constants/internalPubkey";
 import { initBTCCurve } from "./utils/curve";
-import { StakingScriptData } from "./utils/stakingScript";
+import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
 import { UTXO } from "./types/UTXO";
 
 export { initBTCCurve, StakingScriptData };
@@ -25,6 +32,21 @@ export function stakingTransaction(
   publicKeyNoCoord?: Buffer,
   dataEmbedScript?: Buffer,
 ): Psbt {
+  // Check that amount and fee are bigger than 0
+  if (amount <= 0 || fee <= 0) {
+    throw new Error("Amount and fee must be bigger than 0");
+  }
+
+  // Check whether the change address is a valid Bitcoin address.
+  if (!address.toOutputScript(changeAddress, network)) {
+    throw new Error("Invalid change address");
+  }
+
+  // Check whether the public key is valid
+  if (publicKeyNoCoord && publicKeyNoCoord.length !== PK_LENGTH) {
+    throw new Error("Invalid public key");
+  }
+
   // Create a partially signed transaction
   const psbt = new Psbt({ network });
   // Add the UTXOs provided as inputs to the transaction
@@ -42,6 +64,11 @@ export function stakingTransaction(
       ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
     });
     inputsSum += input.value;
+  }
+
+  // Check whether inputSum is enough to satisfy the staking amount
+  if (inputsSum < amount + fee) {
+    throw new Error("Insufficient funds");
   }
 
   const scriptTree: Taptree = [
@@ -151,6 +178,16 @@ export function withdrawalTransaction(
   network: networks.Network,
   outputIndex: number = 0,
 ): Psbt {
+  // Check that withdrawal fee is bigger than 0
+  if (withdrawalFee <= 0) {
+    throw new Error("Withdrawal fee must be bigger than 0");
+  }
+
+  // Check that outputIndex is bigger or equal to 0
+  if (outputIndex < 0) {
+    throw new Error("Output index must be bigger or equal to 0");
+  }
+
   // position of time in the timelock script
   const timePosition = 2;
   const decompiled = script.decompile(timelockScript);
@@ -231,6 +268,16 @@ export function slashingTransaction(
   network: networks.Network,
   outputIndex: number = 0,
 ): Psbt {
+  // Check that slashing rate and minimum fee are bigger than 0
+  if (slashingRate <= 0 || minimumFee <= 0) {
+    throw new Error("Slashing rate and minimum fee must be bigger than 0");
+  }
+
+  // Check that outputIndex is bigger or equal to 0
+  if (outputIndex < 0) {
+    throw new Error("Output index must be bigger or equal to 0");
+  }
+
   const redeem = {
     output: redeemOutput,
     redeemVersion: 192,
@@ -301,6 +348,16 @@ export function unbondingTransaction(
   network: networks.Network,
   outputIndex: number = 0,
 ): Psbt {
+  // Check that transaction fee is bigger than 0
+  if (transactionFee <= 0) {
+    throw new Error("Unbonding fee must be bigger than 0");
+  }
+
+  // Check that outputIndex is bigger or equal to 0
+  if (outputIndex < 0) {
+    throw new Error("Output index must be bigger or equal to 0");
+  }
+
   // Build input tapleaf script
   const inputScriptTree: Taptree = [
     {

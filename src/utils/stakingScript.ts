@@ -2,16 +2,19 @@ import { script, opcodes } from "bitcoinjs-lib";
 
 import { StakingScripts } from "../types/StakingScripts";
 
+// PK_LENGTH denotes the length of a public key in bytes
+export const PK_LENGTH = 32;
+
 // StakingScriptData is a class that holds the data required for the BTC Staking Script
 // and exposes methods for converting it into useful formats
 export class StakingScriptData {
-  stakerKey: Buffer;
-  finalityProviderKeys: Buffer[];
-  covenantKeys: Buffer[];
-  covenantThreshold: number;
-  stakingTimeLock: number;
-  unbondingTimeLock: number;
-  magicBytes: Buffer;
+  #stakerKey: Buffer;
+  #finalityProviderKeys: Buffer[];
+  #covenantKeys: Buffer[];
+  #covenantThreshold: number;
+  #stakingTimeLock: number;
+  #unbondingTimeLock: number;
+  #magicBytes: Buffer;
 
   constructor(
     // The `stakerKey` is the public key of the staker without the coordinate bytes.
@@ -38,13 +41,30 @@ export class StakingScriptData {
     // through the data return script
     magicBytes: Buffer,
   ) {
-    this.stakerKey = stakerKey;
-    this.finalityProviderKeys = finalityProviderKeys;
-    this.covenantKeys = covenantKeys;
-    this.covenantThreshold = covenantThreshold;
-    this.stakingTimeLock = stakingTimelock;
-    this.unbondingTimeLock = unbondingTimelock;
-    this.magicBytes = magicBytes;
+    // Check that required input values are not missing when creating an instance of the StakingScriptData class
+    if (
+      !stakerKey ||
+      !finalityProviderKeys ||
+      !covenantKeys ||
+      !covenantThreshold ||
+      !stakingTimelock ||
+      !unbondingTimelock ||
+      !magicBytes
+    ) {
+      throw new Error("Missing required input values");
+    }
+    this.#stakerKey = stakerKey;
+    this.#finalityProviderKeys = finalityProviderKeys;
+    this.#covenantKeys = covenantKeys;
+    this.#covenantThreshold = covenantThreshold;
+    this.#stakingTimeLock = stakingTimelock;
+    this.#unbondingTimeLock = unbondingTimelock;
+    this.#magicBytes = magicBytes;
+
+    // Run the validate method to check if the provided script data is valid
+    if (!this.validate()) {
+      throw new Error("Invalid script data provided");
+    }
   }
 
   /**
@@ -52,30 +72,26 @@ export class StakingScriptData {
    * @returns {boolean} Returns true if the staking script is valid, otherwise false.
    */
   validate(): boolean {
-    // pubKeyLength denotes the length of a public key in bytes
-    const pubKeyLength = 32;
     // check that staker key is the correct length
-    if (this.stakerKey.length != pubKeyLength) {
+    if (this.#stakerKey.length != PK_LENGTH) {
       return false;
     }
     // check that finalityProvider keys are the correct length
     if (
-      this.finalityProviderKeys.some(
-        (finalityProviderKey) => finalityProviderKey.length != pubKeyLength,
+      this.#finalityProviderKeys.some(
+        (finalityProviderKey) => finalityProviderKey.length != PK_LENGTH,
       )
     ) {
       return false;
     }
     // check that covenant keys are the correct length
     if (
-      this.covenantKeys.some(
-        (covenantKey) => covenantKey.length != pubKeyLength,
-      )
+      this.#covenantKeys.some((covenantKey) => covenantKey.length != PK_LENGTH)
     ) {
       return false;
     }
     // check that maximum value for staking time is not greater than uint16
-    if (this.stakingTimeLock > 65535) {
+    if (this.#stakingTimeLock > 65535) {
       return false;
     }
     return true;
@@ -92,7 +108,7 @@ export class StakingScriptData {
    */
   buildTimelockScript(timelock: number): Buffer {
     return script.compile([
-      this.stakerKey,
+      this.#stakerKey,
       opcodes.OP_CHECKSIGVERIFY,
       script.number.encode(timelock),
       opcodes.OP_CHECKSEQUENCEVERIFY,
@@ -110,7 +126,7 @@ export class StakingScriptData {
    * @returns {Buffer} The staking timelock script.
    */
   buildStakingTimelockScript(): Buffer {
-    return this.buildTimelockScript(this.stakingTimeLock);
+    return this.buildTimelockScript(this.#stakingTimeLock);
   }
 
   /**
@@ -123,7 +139,7 @@ export class StakingScriptData {
    * @returns {Buffer} The unbonding timelock script.
    */
   buildUnbondingTimelockScript(): Buffer {
-    return this.buildTimelockScript(this.unbondingTimeLock);
+    return this.buildTimelockScript(this.#unbondingTimeLock);
   }
 
   /**
@@ -135,10 +151,10 @@ export class StakingScriptData {
    */
   buildUnbondingScript(): Buffer {
     return Buffer.concat([
-      this.buildSingleKeyScript(this.stakerKey, true),
-      this.buildMultiKeyScript(
-        this.covenantKeys,
-        this.covenantThreshold,
+      this.#buildSingleKeyScript(this.#stakerKey, true),
+      this.#buildMultiKeyScript(
+        this.#covenantKeys,
+        this.#covenantThreshold,
         false,
       ),
     ]);
@@ -157,9 +173,9 @@ export class StakingScriptData {
    */
   buildSlashingScript(): Buffer {
     return Buffer.concat([
-      this.buildSingleKeyScript(this.stakerKey, true),
-      this.buildMultiKeyScript(
-        this.finalityProviderKeys,
+      this.#buildSingleKeyScript(this.#stakerKey, true),
+      this.#buildMultiKeyScript(
+        this.#finalityProviderKeys,
         // The threshold is always 1 as we only need one
         // finalityProvider signature to perform slashing
         // (only one finalityProvider performs an offence)
@@ -167,9 +183,9 @@ export class StakingScriptData {
         // OP_VERIFY/OP_CHECKSIGVERIFY is added at the end
         true,
       ),
-      this.buildMultiKeyScript(
-        this.covenantKeys,
-        this.covenantThreshold,
+      this.#buildMultiKeyScript(
+        this.#covenantKeys,
+        this.#covenantThreshold,
         // No need to add verify since covenants are at the end of the script
         false,
       ),
@@ -190,12 +206,12 @@ export class StakingScriptData {
     // 2 bytes for staking time
     const stakingTimeLock = Buffer.alloc(2);
     // big endian
-    stakingTimeLock.writeUInt16BE(this.stakingTimeLock);
+    stakingTimeLock.writeUInt16BE(this.#stakingTimeLock);
     const serializedStakingData = Buffer.concat([
-      this.magicBytes,
+      this.#magicBytes,
       version,
-      this.stakerKey,
-      this.finalityProviderKeys[0],
+      this.#stakerKey,
+      this.#finalityProviderKeys[0],
       stakingTimeLock,
     ]);
     return script.compile([opcodes.OP_RETURN, serializedStakingData]);
@@ -227,7 +243,11 @@ export class StakingScriptData {
    * @param withVerify - A boolean indicating whether to include the OP_CHECKSIGVERIFY opcode.
    * @returns The compiled script buffer.
    */
-  buildSingleKeyScript(pk: Buffer, withVerify: boolean): Buffer {
+  #buildSingleKeyScript(pk: Buffer, withVerify: boolean): Buffer {
+    // Check public key length
+    if (pk.length != PK_LENGTH) {
+      throw new Error("Invalid key length");
+    }
     return script.compile([
       pk,
       withVerify ? opcodes.OP_CHECKSIGVERIFY : opcodes.OP_CHECKSIG,
@@ -246,7 +266,7 @@ export class StakingScriptData {
    * @returns The compiled multi-key script as a Buffer.
    * @throws {Error} If no keys are provided, if the required number of valid signers is greater than the number of provided keys, or if duplicate keys are provided.
    */
-  buildMultiKeyScript(
+  #buildMultiKeyScript(
     pks: Buffer[],
     threshold: number,
     withVerify: boolean,
@@ -255,6 +275,10 @@ export class StakingScriptData {
     if (!pks || pks.length === 0) {
       throw new Error("No keys provided");
     }
+    // Check buffer object have expected lengths like checking pks.length
+    if (pks.some((pk) => pk.length != PK_LENGTH)) {
+      throw new Error("Invalid key length");
+    }
     // Verify that threshold <= len(pks)
     if (threshold > pks.length) {
       throw new Error(
@@ -262,7 +286,7 @@ export class StakingScriptData {
       );
     }
     if (pks.length === 1) {
-      return this.buildSingleKeyScript(pks[0], withVerify);
+      return this.#buildSingleKeyScript(pks[0], withVerify);
     }
     // keys must be sorted
     const sortedPks = pks.sort(Buffer.compare);
