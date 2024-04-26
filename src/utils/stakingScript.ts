@@ -256,8 +256,8 @@ export class StakingScriptData {
 
   /**
    * Builds a multi-key script in the form:
-   *    <pk1> OP_CHEKCSIG <pk2> OP_CHECKSIGADD <pk3> OP_CHECKSIGADD ... <pkN> OP_CHECKSIGADD <threshold> OP_GREATERTHANOREQUAL
-   *    <withVerify -> OP_VERIFY>
+   *    <pk1> OP_CHEKCSIG <pk2> OP_CHECKSIGADD <pk3> OP_CHECKSIGADD ... <pkN> OP_CHECKSIGADD <threshold> OP_NUMEQUAL
+   *    <withVerify -> OP_NUMEQUALVERIFY>
    * It validates whether provided keys are unique and the threshold is not greater than number of keys
    * If there is only one key provided it will return single key sig script
    * @param pks - An array of public keys.
@@ -302,9 +302,10 @@ export class StakingScriptData {
       scriptElements.push(opcodes.OP_CHECKSIGADD);
     }
     scriptElements.push(script.number.encode(threshold));
-    scriptElements.push(opcodes.OP_GREATERTHANOREQUAL);
     if (withVerify) {
-      scriptElements.push(opcodes.OP_VERIFY);
+      scriptElements.push(opcodes.OP_NUMEQUALVERIFY);
+    } else {
+      scriptElements.push(opcodes.OP_NUMEQUAL);
     }
     return script.compile(scriptElements);
   }
