@@ -4,9 +4,7 @@
     <p align="center">Babylon Bitcoin Staking Protocol</p>
     <p align="center"><strong>TypeScript</strong> library</p>
     <p align="center">
-        <a href="https://github.com/babylonchain/btc-staking-ts/releases">
-            <img src="https://img.shields.io/badge/version-0.1.1-FF7C2B">
-        </a>
+      <a href="https://www.npmjs.com/package/btc-staking-ts"><img src="https://badge.fury.io/js/btc-staking-ts.svg" alt="npm version" height="18"></a>
     </p>
 </p>
 <br/>
@@ -56,7 +54,7 @@ import { networks } from "bitcoinjs-lib";
 const covenantPks: Buffer[] = covenant_pks.map((pk) => Buffer.from(pk, "hex"));
 const covenantThreshold: number = 3;
 const minUnbondingTime: number = 101;
-const magicBytes: Buffer = Buffer.from("62627434", "hex") // "bbt4" tag
+const magicBytes: Buffer = Buffer.from("62627434", "hex"); // "bbt4" tag
 
 // 2. Define the user selected parameters of the staking contract:
 //    - `stakerPk: Buffer`: The public key without the coordinate of the
@@ -123,7 +121,7 @@ const stakingScriptData = new StakingScriptData(
   covenantThreshold,
   stakingDuration,
   minUnbondingTime,
-  magicBytes
+  magicBytes,
 );
 
 const {
