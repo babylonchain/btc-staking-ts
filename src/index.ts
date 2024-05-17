@@ -15,11 +15,23 @@ import { UTXO } from "./types/UTXO";
 
 export { initBTCCurve, StakingScriptData };
 
+// https://bips.xyz/370
+const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
+
 // stakingTransaction constructs an unsigned BTC Staking transaction
 // - Outputs:
 //   - The first one corresponds to the staking script with a certain amount
 //   - The second one corresponds to the change from spending the amount and the transaction fee
 //   - In case of data embed script, it will be added as the second output, fee as the third
+// - Inputs:
+//   - timelockScript, unbondingScript, slashingScript: Scripts for different transaction types
+//   - amount, fee: Amount to stake and transaction fee
+//   - changeAddress: Address to send the change to
+//   - inputUTXOs: UTXOs to use as inputs for the transaction
+//   - network: Bitcoin network
+//   - publicKeyNoCoord: Public key if the wallet is in taproot mode
+//   - dataEmbedScript: Optional data embed script
+//   - lockHeight: Optional block height locktime to set for the transaction. i.e not mined until block height
 export function stakingTransaction(
   timelockScript: Buffer,
   unbondingScript: Buffer,
@@ -31,6 +43,7 @@ export function stakingTransaction(
   network: networks.Network,
   publicKeyNoCoord?: Buffer,
   dataEmbedScript?: Buffer,
+  lockHeight?: number,
 ): Psbt {
   // Check that amount and fee are bigger than 0
   if (amount <= 0 || fee <= 0) {
@@ -105,6 +118,15 @@ export function stakingTransaction(
       address: changeAddress,
       value: inputsSum - (amount + fee),
     });
+  }
+
+  // Set the locktime field if provided. If not provided, the locktime will be set to 0 by default
+  // Only height based locktime is supported
+  if (lockHeight !== undefined) {
+    if (lockHeight < 0 || lockHeight >= BTC_LOCKTIME_HEIGHT_TIME_CUTOFF) {
+      throw new Error("Invalid lock height");
+    }
+    psbt.setLocktime(lockHeight);
   }
 
   return psbt;
