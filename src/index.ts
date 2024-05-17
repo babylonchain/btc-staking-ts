@@ -75,6 +75,7 @@ export function stakingTransaction(
       },
       // this is needed only if the wallet is in taproot mode
       ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
+      sequence: 0xfffffffe, // Enable locktime by setting the sequence value
     });
     inputsSum += input.value;
   }
