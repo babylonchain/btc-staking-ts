@@ -48,13 +48,21 @@ import { networks } from "bitcoinjs-lib";
 //          allowed by the Babylon system .
 //       - `magicBytes: Buffer`: The magic bytes that are appended to the data
 //          embed script that is used to identify the staking transaction on BTC.
+//       - `lockHeight: number`: Indicates the BTC height at which
+//          the transaction should be included. This value can be derived from
+//          the `activationHeight` of the Babylon versioned global parameters
+//          where the current BTC height is. Note that if the 
+//          `current BTC height + 1 + confirmationDepth` is going to be >=
+//          the next versioned `activationHeight`, then you should use the 
+//          `activationHeight` from the next version of the global parameters.
 //    Below, these values are hardcoded, but they should be retrieved from the
 //    Babylon system.
-
 const covenantPks: Buffer[] = covenant_pks.map((pk) => Buffer.from(pk, "hex"));
 const covenantThreshold: number = 3;
 const minUnbondingTime: number = 101;
 const magicBytes: Buffer = Buffer.from("62627434", "hex"); // "bbt4" tag
+// Optional field. Value coming from current global param activationHeight
+const lockHeight: number = 0;
 
 // 2. Define the user selected parameters of the staking contract:
 //    - `stakerPk: Buffer`: The public key without the coordinate of the
@@ -166,6 +174,7 @@ const unsignedStakingTx: Psbt = stakingTransaction(
   network(),
   btcWallet.isTaproot ? btcWallet.publicKeyNoCoord() : undefined,
   dataEmbedScript,
+  lockHeight,
 );
 
 const stakingTx: Promise<Transaction> = await btcWallet.signTransaction(unsignedStakingTx: Psbt);

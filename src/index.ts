@@ -75,7 +75,7 @@ export function stakingTransaction(
       },
       // this is needed only if the wallet is in taproot mode
       ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
-      sequence: 0xfffffffe, // Enable locktime by setting the sequence value
+      sequence: 0xfffffffd, // Enable locktime by setting the sequence value to (RBF-able)
     });
     inputsSum += input.value;
   }
@@ -123,8 +123,8 @@ export function stakingTransaction(
 
   // Set the locktime field if provided. If not provided, the locktime will be set to 0 by default
   // Only height based locktime is supported
-  if (lockHeight !== undefined) {
-    if (lockHeight < 0 || lockHeight >= BTC_LOCKTIME_HEIGHT_TIME_CUTOFF) {
+  if (lockHeight) {
+    if (lockHeight >= BTC_LOCKTIME_HEIGHT_TIME_CUTOFF) {
       throw new Error("Invalid lock height");
     }
     psbt.setLocktime(lockHeight);
