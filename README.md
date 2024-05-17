@@ -48,8 +48,8 @@ import { networks } from "bitcoinjs-lib";
 //          allowed by the Babylon system .
 //       - `magicBytes: Buffer`: The magic bytes that are appended to the data
 //          embed script that is used to identify the staking transaction on BTC.
-//       - `lockHeight: number`: Indicates the BTC height at which
-//          the transaction should be included. This value can be derived from
+//       - `lockHeight: number`: Indicates the BTC height before which
+//          the transaction is considered invalid. This value can be derived from
 //          the `activationHeight` of the Babylon versioned global parameters
 //          where the current BTC height is. Note that if the 
 //          `current BTC height + 1 + confirmationDepth` is going to be >=
