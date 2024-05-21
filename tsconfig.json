@@ -7,7 +7,11 @@
     "strict": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "declaration": true
+    "declaration": true,
   },
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts"
+  ]
 }

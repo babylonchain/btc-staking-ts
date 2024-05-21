@@ -12,6 +12,7 @@ import { internalPubkey } from "./constants/internalPubkey";
 import { initBTCCurve } from "./utils/curve";
 import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
 import { UTXO } from "./types/UTXO";
+import { coinSelect } from "coinselect";
 
 export { initBTCCurve, StakingScriptData };
 
@@ -25,10 +26,11 @@ const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
 //   - In case of data embed script, it will be added as the second output, fee as the third
 // - Inputs:
 //   - timelockScript, unbondingScript, slashingScript: Scripts for different transaction types
-//   - amount, fee: Amount to stake and transaction fee
+//   - amount: Amount to stake and transaction fee
 //   - changeAddress: Address to send the change to
 //   - inputUTXOs: UTXOs to use as inputs for the transaction
 //   - network: Bitcoin network
+//   - feeRate: Fee rate for the transaction
 //   - publicKeyNoCoord: Public key if the wallet is in taproot mode
 //   - dataEmbedScript: Optional data embed script
 //   - lockHeight: Optional block height locktime to set for the transaction. i.e not mined until block height
@@ -37,17 +39,17 @@ export function stakingTransaction(
   unbondingScript: Buffer,
   slashingScript: Buffer,
   amount: number,
-  fee: number,
   changeAddress: string,
   inputUTXOs: UTXO[],
   network: networks.Network,
+  feeRate: number,
   publicKeyNoCoord?: Buffer,
   dataEmbedScript?: Buffer,
   lockHeight?: number,
 ): Psbt {
   // Check that amount and fee are bigger than 0
-  if (amount <= 0 || fee <= 0) {
-    throw new Error("Amount and fee must be bigger than 0");
+  if (amount <= 0 || feeRate <= 0) {
+    throw new Error("Amount and feeRate must be bigger than 0");
   }
 
   // Check whether the change address is a valid Bitcoin address.
@@ -58,31 +60,6 @@ export function stakingTransaction(
   // Check whether the public key is valid
   if (publicKeyNoCoord && publicKeyNoCoord.length !== PK_LENGTH) {
     throw new Error("Invalid public key");
-  }
-
-  // Create a partially signed transaction
-  const psbt = new Psbt({ network });
-  // Add the UTXOs provided as inputs to the transaction
-  let inputsSum = 0;
-  for (let i = 0; i < inputUTXOs.length; ++i) {
-    const input = inputUTXOs[i];
-    psbt.addInput({
-      hash: input.txid,
-      index: input.vout,
-      witnessUtxo: {
-        script: Buffer.from(input.scriptPubKey, "hex"),
-        value: input.value,
-      },
-      // this is needed only if the wallet is in taproot mode
-      ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
-      sequence: 0xfffffffd, // Enable locktime by setting the sequence value to (RBF-able)
-    });
-    inputsSum += input.value;
-  }
-
-  // Check whether inputSum is enough to satisfy the staking amount
-  if (inputsSum < amount + fee) {
-    throw new Error("Insufficient funds");
   }
 
   const scriptTree: Taptree = [
@@ -100,24 +77,53 @@ export function stakingTransaction(
   });
 
   // Add the staking output to the transaction
-  psbt.addOutput({
-    address: stakingOutput.address!,
-    value: amount,
-  });
+  const outputs: any = [
+    {
+      address: stakingOutput.address!,
+      value: amount,
+    },
+  ];
 
+  // Add the data embed output to the transaction
   if (dataEmbedScript) {
-    // Add the data embed output to the transaction
-    psbt.addOutput({
+    outputs.push({
       script: dataEmbedScript,
       value: 0,
     });
   }
 
+  const { fee: calculatedFee } = coinSelect(inputUTXOs, outputs, feeRate);
+
+  // Create a partially signed transaction
+  const psbt = new Psbt({ network });
+  // Add the UTXOs provided as inputs to the transaction
+  let inputsSum = 0;
+  inputUTXOs.forEach((input) => {
+    psbt.addInput({
+      hash: input.txid,
+      index: input.vout,
+      witnessUtxo: {
+        script: Buffer.from(input.scriptPubKey, "hex"),
+        value: input.value,
+      },
+      // this is needed only if the wallet is in taproot mode
+      ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
+      sequence: 0xfffffffd, // Enable locktime by setting the sequence value to (RBF-able)
+    });
+    inputsSum += input.value;
+  });
+
+  // Check whether inputSum is enough to satisfy the staking amount
+  if (inputsSum < amount + calculatedFee) {
+    throw new Error("Insufficient funds");
+  }
+
+  psbt.addOutputs(outputs);
   // Add a change output only if there's any amount leftover from the inputs
-  if (inputsSum > amount + fee) {
+  if (inputsSum > amount + calculatedFee) {
     psbt.addOutput({
       address: changeAddress,
-      value: inputsSum - (amount + fee),
+      value: inputsSum - (amount + calculatedFee),
     });
   }
 
