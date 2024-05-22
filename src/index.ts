@@ -12,6 +12,7 @@ import { internalPubkey } from "./constants/internalPubkey";
 import { initBTCCurve } from "./utils/curve";
 import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
 import { UTXO } from "./types/UTXO";
+import { getEstimatedFee } from "./utils/fee";
 
 export { initBTCCurve, StakingScriptData };
 
@@ -20,34 +21,38 @@ const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
 
 // stakingTransaction constructs an unsigned BTC Staking transaction
 // - Outputs:
-//   - The first one corresponds to the staking script with a certain amount
-//   - The second one corresponds to the change from spending the amount and the transaction fee
-//   - In case of data embed script, it will be added as the second output, fee as the third
+//   - psbt: 
+//      - The first one corresponds to the staking script with a certain amount
+//      - The second one corresponds to the change from spending the amount and the transaction fee
+//      - In case of data embed script, it will be added as the second output, fee as the third
+//   - fee: The fee amount of the transaction
 // - Inputs:
-//   - timelockScript, unbondingScript, slashingScript: Scripts for different transaction types
+//   - scripts: timelockScript, unbondingScript, slashingScript: Scripts for different transaction types
+//     and dataEmbedScript: Optional data embed script
 //   - amount, fee: Amount to stake and transaction fee
 //   - changeAddress: Address to send the change to
 //   - inputUTXOs: UTXOs to use as inputs for the transaction
 //   - network: Bitcoin network
 //   - publicKeyNoCoord: Public key if the wallet is in taproot mode
-//   - dataEmbedScript: Optional data embed script
 //   - lockHeight: Optional block height locktime to set for the transaction. i.e not mined until block height
 export function stakingTransaction(
-  timelockScript: Buffer,
-  unbondingScript: Buffer,
-  slashingScript: Buffer,
+  scripts: {
+    timelockScript: Buffer,
+    unbondingScript: Buffer,
+    slashingScript: Buffer,
+    dataEmbedScript?: Buffer,
+  },
   amount: number,
-  fee: number,
   changeAddress: string,
   inputUTXOs: UTXO[],
   network: networks.Network,
+  feeRate: number,
   publicKeyNoCoord?: Buffer,
-  dataEmbedScript?: Buffer,
   lockHeight?: number,
-): Psbt {
+): { psbt: Psbt, fee: number } {
   // Check that amount and fee are bigger than 0
-  if (amount <= 0 || fee <= 0) {
-    throw new Error("Amount and fee must be bigger than 0");
+  if (amount <= 0 || feeRate <= 0) {
+    throw new Error("Amount and fee rate must be bigger than 0");
   }
 
   // Check whether the change address is a valid Bitcoin address.
@@ -80,16 +85,11 @@ export function stakingTransaction(
     inputsSum += input.value;
   }
 
-  // Check whether inputSum is enough to satisfy the staking amount
-  if (inputsSum < amount + fee) {
-    throw new Error("Insufficient funds");
-  }
-
   const scriptTree: Taptree = [
     {
-      output: slashingScript,
+      output: scripts.slashingScript,
     },
-    [{ output: unbondingScript }, { output: timelockScript }],
+    [{ output: scripts.unbondingScript }, { output: scripts.timelockScript }],
   ];
 
   // Create an pay-2-taproot (p2tr) output using the staking script
@@ -105,12 +105,19 @@ export function stakingTransaction(
     value: amount,
   });
 
-  if (dataEmbedScript) {
+  if (scripts.dataEmbedScript) {
     // Add the data embed output to the transaction
     psbt.addOutput({
-      script: dataEmbedScript,
+      script: scripts.dataEmbedScript,
       value: 0,
     });
+  }
+
+  const outputSize = psbt.txOutputs.length + 1
+  const fee = getEstimatedFee(feeRate, inputUTXOs.length, outputSize);
+  // Check whether inputSum is enough to satisfy the staking amount
+  if (inputsSum < amount + fee) {
+    throw new Error("Insufficient funds");
   }
 
   // Add a change output only if there's any amount leftover from the inputs
@@ -121,6 +128,7 @@ export function stakingTransaction(
     });
   }
 
+
   // Set the locktime field if provided. If not provided, the locktime will be set to 0 by default
   // Only height based locktime is supported
   if (lockHeight) {
@@ -130,62 +138,77 @@ export function stakingTransaction(
     psbt.setLocktime(lockHeight);
   }
 
-  return psbt;
+  return {
+    psbt,
+    fee
+  };
 }
 
 // Delegation is manually unbonded
 export function withdrawEarlyUnbondedTransaction(
-  unbondingTimelockScript: Buffer,
-  slashingScript: Buffer,
+  scripts: {
+    unbondingTimelockScript: Buffer,
+    slashingScript: Buffer,
+  },
   tx: Transaction,
   withdrawalAddress: string,
-  withdrawalFee: number,
+  feeRate: number,
   network: networks.Network,
   outputIndex: number = 0,
-): Psbt {
+): {
+  psbt: Psbt,
+  fee: number
+} {
   const scriptTree: Taptree = [
     {
-      output: slashingScript,
+      output: scripts.slashingScript,
     },
-    { output: unbondingTimelockScript },
+    { output: scripts.unbondingTimelockScript },
   ];
 
   return withdrawalTransaction(
-    unbondingTimelockScript,
+    {
+      timelockScript: scripts.unbondingTimelockScript,
+    },
     scriptTree,
     tx,
     withdrawalAddress,
-    withdrawalFee,
     network,
+    feeRate,
     outputIndex,
   );
 }
 
 // Delegation is naturally unbonded
 export function withdrawTimelockUnbondedTransaction(
-  timelockScript: Buffer,
-  slashingScript: Buffer,
-  unbondingScript: Buffer,
+  scripts: {
+    timelockScript: Buffer,
+    slashingScript: Buffer,
+    unbondingScript: Buffer,
+  },
   tx: Transaction,
   withdrawalAddress: string,
-  withdrawalFee: number,
   network: networks.Network,
+  feeRate: number,
   outputIndex: number = 0,
-): Psbt {
+): {
+  psbt: Psbt,
+  fee: number
+} {
   const scriptTree: Taptree = [
     {
-      output: slashingScript,
+      output: scripts.slashingScript,
     },
-    [{ output: unbondingScript }, { output: timelockScript }],
+    [{ output: scripts.unbondingScript }, { output: scripts.timelockScript }],
   ];
 
   return withdrawalTransaction(
-    timelockScript,
+    scripts,
     scriptTree,
     tx,
     withdrawalAddress,
-    withdrawalFee,
     network,
+    feeRate,
     outputIndex,
   );
 }
@@ -193,17 +216,22 @@ export function withdrawTimelockUnbondedTransaction(
 // withdrawalTransaction generates a transaction that
 // spends the staking output of the staking transaction
 export function withdrawalTransaction(
-  timelockScript: Buffer,
+  scripts: {
+    timelockScript: Buffer,
+  },
   scriptTree: Taptree,
   tx: Transaction,
   withdrawalAddress: string,
-  withdrawalFee: number,
   network: networks.Network,
+  feeRate: number,
   outputIndex: number = 0,
-): Psbt {
-  // Check that withdrawal fee is bigger than 0
-  if (withdrawalFee <= 0) {
-    throw new Error("Withdrawal fee must be bigger than 0");
+): {
+  psbt: Psbt,
+  fee: number
+} {
+  // Check that withdrawal feeRate is bigger than 0
+  if (feeRate <= 0) {
+    throw new Error("Withdrawal feeRate must be bigger than 0");
   }
 
   // Check that outputIndex is bigger or equal to 0
@@ -213,7 +241,7 @@ export function withdrawalTransaction(
 
   // position of time in the timelock script
   const timePosition = 2;
-  const decompiled = script.decompile(timelockScript);
+  const decompiled = script.decompile(scripts.timelockScript);
 
   if (!decompiled) {
     throw new Error("Timelock script is not valid");
@@ -232,7 +260,7 @@ export function withdrawalTransaction(
   }
 
   const redeem = {
-    output: timelockScript,
+    output: scripts.timelockScript,
     redeemVersion: 192,
   };
 
@@ -267,12 +295,19 @@ export function withdrawalTransaction(
     sequence: timelock,
   });
 
+  // Output size is the number of outputs + 1 for the withdrawal output
+  const outputSize = psbt.txOutputs.length + 1
+  const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, outputSize);
+
   psbt.addOutput({
     address: withdrawalAddress,
-    value: tx.outs[outputIndex].value - withdrawalFee,
+    value: tx.outs[outputIndex].value - estimatedFee,
   });
 
-  return psbt;
+  return {
+    psbt,
+    fee: estimatedFee
+  };
 }
 
 // slashingTransaction generates a transaction that
@@ -281,12 +316,14 @@ export function withdrawalTransaction(
 //   - The first one sends input * slashing_rate funds to the slashing address
 //   - The second one sends input * (1-slashing_rate) - fee funds back to the user’s address
 export function slashingTransaction(
+  scripts: {
+    changeScript: Buffer,
+  },
   scriptTree: Taptree,
   redeemOutput: Buffer,
   transaction: Transaction,
   slashingAddress: string,
   slashingRate: number,
-  changeScript: Buffer,
   minimumFee: number,
   network: networks.Network,
   outputIndex: number = 0,
@@ -348,7 +385,7 @@ export function slashingTransaction(
   // Change output contains unbonding timelock script
   const changeOutput = payments.p2tr({
     internalPubkey,
-    scriptTree: { output: changeScript },
+    scriptTree: { output: scripts.changeScript },
     network,
   });
 
@@ -362,18 +399,23 @@ export function slashingTransaction(
 }
 
 export function unbondingTransaction(
-  unbondingScript: Buffer,
-  unbondingTimelockScript: Buffer,
-  timelockScript: Buffer,
-  slashingScript: Buffer,
+  scripts: {
+    unbondingScript: Buffer,
+    unbondingTimelockScript: Buffer,
+    timelockScript: Buffer,
+    slashingScript: Buffer,
+  },
   stakingTx: Transaction,
-  transactionFee: number,
   network: networks.Network,
+  feeRate: number,
   outputIndex: number = 0,
-): Psbt {
+): {
+  psbt: Psbt,
+  fee: number
+} {
   // Check that transaction fee is bigger than 0
-  if (transactionFee <= 0) {
-    throw new Error("Unbonding fee must be bigger than 0");
+  if (feeRate <= 0) {
+    throw new Error("Unbonding feeRate must be bigger than 0");
   }
 
   // Check that outputIndex is bigger or equal to 0
@@ -384,13 +426,13 @@ export function unbondingTransaction(
   // Build input tapleaf script
   const inputScriptTree: Taptree = [
     {
-      output: slashingScript,
+      output: scripts.slashingScript,
     },
-    [{ output: unbondingScript }, { output: timelockScript }],
+    [{ output: scripts.unbondingScript }, { output: scripts.timelockScript }],
   ];
 
   const inputRedeem = {
-    output: unbondingScript,
+    output: scripts.unbondingScript,
     redeemVersion: 192,
   };
 
@@ -422,9 +464,9 @@ export function unbondingTransaction(
   // Build output tapleaf script
   const outputScriptTree: Taptree = [
     {
-      output: slashingScript,
+      output: scripts.slashingScript,
     },
-    { output: unbondingTimelockScript },
+    { output: scripts.unbondingTimelockScript },
   ];
 
   const unbondingOutput = payments.p2tr({
@@ -433,13 +475,19 @@ export function unbondingTransaction(
     network,
   });
 
+  const outputSize = psbt.txOutputs.length + 1
+  const transactionFee = getEstimatedFee(feeRate, psbt.txInputs.length, outputSize);
+
   // Add the unbonding output
   psbt.addOutput({
     address: unbondingOutput.address!,
     value: stakingTx.outs[0].value - transactionFee,
   });
 
-  return psbt;
+  return {
+    psbt,
+    fee: transactionFee
+  };
 }
 
 // this function is used to create witness for unbonding transaction
