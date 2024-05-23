@@ -152,8 +152,8 @@ export function withdrawEarlyUnbondedTransaction(
   },
   tx: Transaction,
   withdrawalAddress: string,
-  feeRate: number,
   network: networks.Network,
+  feeRate: number,
   outputIndex: number = 0,
 ): {
   psbt: Psbt,
@@ -406,16 +406,15 @@ export function unbondingTransaction(
     slashingScript: Buffer,
   },
   stakingTx: Transaction,
+  transactionFee: number,
   network: networks.Network,
-  feeRate: number,
   outputIndex: number = 0,
 ): {
-  psbt: Psbt,
-  fee: number
+  psbt: Psbt
 } {
   // Check that transaction fee is bigger than 0
-  if (feeRate <= 0) {
-    throw new Error("Unbonding feeRate must be bigger than 0");
+  if (transactionFee <= 0) {
+    throw new Error("Unbonding fee must be bigger than 0");
   }
 
   // Check that outputIndex is bigger or equal to 0
@@ -475,9 +474,6 @@ export function unbondingTransaction(
     network,
   });
 
-  const outputSize = psbt.txOutputs.length + 1
-  const transactionFee = getEstimatedFee(feeRate, psbt.txInputs.length, outputSize);
-
   // Add the unbonding output
   psbt.addOutput({
     address: unbondingOutput.address!,
@@ -485,8 +481,7 @@ export function unbondingTransaction(
   });
 
   return {
-    psbt,
-    fee: transactionFee
+    psbt
   };
 }
 
