@@ -19,6 +19,11 @@ export { initBTCCurve, StakingScriptData };
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
 
+export interface PsbtTransactionResult {
+  psbt: Psbt;
+  fee: number;
+}
+
 // stakingTransaction constructs an unsigned BTC Staking transaction
 // - Outputs:
 //   - psbt: 
@@ -49,7 +54,7 @@ export function stakingTransaction(
   feeRate: number,
   publicKeyNoCoord?: Buffer,
   lockHeight?: number,
-): { psbt: Psbt, fee: number } {
+): PsbtTransactionResult {
   // Check that amount and fee are bigger than 0
   if (amount <= 0 || feeRate <= 0) {
     throw new Error("Amount and fee rate must be bigger than 0");
@@ -113,6 +118,8 @@ export function stakingTransaction(
     });
   }
 
+  // Assumption made here that there will be amount leftover from the inputs
+  // which require an additional output to be added to the transaction
   const outputSize = psbt.txOutputs.length + 1
   const fee = getEstimatedFee(feeRate, inputUTXOs.length, outputSize);
   // Check whether inputSum is enough to satisfy the staking amount
@@ -155,10 +162,7 @@ export function withdrawEarlyUnbondedTransaction(
   network: networks.Network,
   feeRate: number,
   outputIndex: number = 0,
-): {
-  psbt: Psbt,
-  fee: number
-} {
+): PsbtTransactionResult {
   const scriptTree: Taptree = [
     {
       output: scripts.slashingScript,
@@ -191,10 +195,7 @@ export function withdrawTimelockUnbondedTransaction(
   network: networks.Network,
   feeRate: number,
   outputIndex: number = 0,
-): {
-  psbt: Psbt,
-  fee: number
-} {
+): PsbtTransactionResult {
   const scriptTree: Taptree = [
     {
       output: scripts.slashingScript,
@@ -215,7 +216,7 @@ export function withdrawTimelockUnbondedTransaction(
 
 // withdrawalTransaction generates a transaction that
 // spends the staking output of the staking transaction
-export function withdrawalTransaction(
+function withdrawalTransaction(
   scripts: {
     timelockScript: Buffer,
   },
@@ -225,10 +226,7 @@ export function withdrawalTransaction(
   network: networks.Network,
   feeRate: number,
   outputIndex: number = 0,
-): {
-  psbt: Psbt,
-  fee: number
-} {
+): PsbtTransactionResult {
   // Check that withdrawal feeRate is bigger than 0
   if (feeRate <= 0) {
     throw new Error("Withdrawal feeRate must be bigger than 0");
@@ -295,9 +293,8 @@ export function withdrawalTransaction(
     sequence: timelock,
   });
 
-  // Output size is the number of outputs + 1 for the withdrawal output
-  const outputSize = psbt.txOutputs.length + 1
-  const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, outputSize);
+  // withdraw tx always has 1 output only
+  const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, 1);
 
   psbt.addOutput({
     address: withdrawalAddress,
@@ -318,8 +315,10 @@ export function withdrawalTransaction(
 export function slashingTransaction(
   scripts: {
     changeScript: Buffer,
+    slashingScript: Buffer,
+    unbondingScript: Buffer,
+    timelockScript: Buffer,
   },
-  scriptTree: Taptree,
   redeemOutput: Buffer,
   transaction: Transaction,
   slashingAddress: string,
@@ -327,7 +326,9 @@ export function slashingTransaction(
   minimumFee: number,
   network: networks.Network,
   outputIndex: number = 0,
-): Psbt {
+): {
+  psbt: Psbt
+} {
   // Check that slashing rate and minimum fee are bigger than 0
   if (slashingRate <= 0 || minimumFee <= 0) {
     throw new Error("Slashing rate and minimum fee must be bigger than 0");
@@ -342,6 +343,13 @@ export function slashingTransaction(
     output: redeemOutput,
     redeemVersion: 192,
   };
+
+  const scriptTree: Taptree = [
+    {
+      output: scripts.slashingScript,
+    },
+    [{ output: scripts.unbondingScript }, { output: scripts.timelockScript }],
+  ];
 
   const p2tr = payments.p2tr({
     internalPubkey,
@@ -395,7 +403,7 @@ export function slashingTransaction(
     value: transaction.outs[0].value * (1 - slashingRate) - minimumFee,
   });
 
-  return psbt;
+  return { psbt };
 }
 
 export function unbondingTransaction(
