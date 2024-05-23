@@ -307,19 +307,97 @@ function withdrawalTransaction(
   };
 }
 
+// Slashing of the staking transaction when no unbonding has been performed
+// it spends the staking output of the staking transaction
+// Outputs:
+//   - The first one sends input * slashing_rate funds to the slashing address
+//   - The second one sends input * (1-slashing_rate) - fee funds back to the user’s address
+export function slashingNoUnbondingTransaction(
+  scripts: {
+    slashingScript: Buffer,
+    timelockScript: Buffer,
+    unbondingScript: Buffer,
+    unbondingTimelockScript: Buffer,
+  },
+  transaction: Transaction,
+  slashingAddress: string,
+  slashingRate: number,
+  minimumFee: number,
+  network: networks.Network,
+  outputIndex: number = 0,
+): { psbt: Psbt } {
+  const slashingScriptTree: Taptree = [
+    {
+      output: scripts.slashingScript,
+    },
+    [{ output: scripts.unbondingScript }, { output: scripts.timelockScript }],
+  ];
+  return slashingTransaction(
+    {
+      unbondingTimelockScript: scripts.unbondingTimelockScript,
+      slashingScript: scripts.slashingScript,
+    },
+    slashingScriptTree,
+    transaction,
+    slashingAddress,
+    slashingRate,
+    minimumFee,
+    network,
+    outputIndex,
+  );
+}
+
+// Slashing of the unbonding transaction in the case of on-demand unbonding
+// it spends the staking output of the staking transaction
+// Outputs:
+//   - The first one sends input * slashing_rate funds to the slashing address
+//   - The second one sends input * (1-slashing_rate) - fee funds back to the user’s address
+export function slashOnDemandUnbondingTransaction(
+  scripts: {
+    slashingScript: Buffer,
+    unbondingTimelockScript: Buffer,
+  },
+  transaction: Transaction,
+  slashingAddress: string,
+  slashingRate: number,
+  minimumFee: number,
+  network: networks.Network,
+  outputIndex: number = 0,
+): { psbt: Psbt } {
+  const unbondingScriptTree: Taptree = [
+    {
+      output: scripts.slashingScript,
+    },
+    {
+      output: scripts.unbondingTimelockScript
+    },
+  ];
+  return slashingTransaction(
+    {
+      unbondingTimelockScript: scripts.unbondingTimelockScript,
+      slashingScript: scripts.slashingScript,
+    },
+    unbondingScriptTree,
+    transaction,
+    slashingAddress,
+    slashingRate,
+    minimumFee,
+    network,
+    outputIndex,
+  );
+}
+
 // slashingTransaction generates a transaction that
 // spends the staking output of the staking transaction
 // Outputs:
 //   - The first one sends input * slashing_rate funds to the slashing address
 //   - The second one sends input * (1-slashing_rate) - fee funds back to the user’s address
-export function slashingTransaction(
+function slashingTransaction(
   scripts: {
-    changeScript: Buffer,
+    unbondingTimelockScript: Buffer,
     slashingScript: Buffer,
-    unbondingScript: Buffer,
-    timelockScript: Buffer,
   },
-  redeemOutput: Buffer,
+  scriptTree: Taptree,
   transaction: Transaction,
   slashingAddress: string,
   slashingRate: number,
@@ -340,16 +418,9 @@ export function slashingTransaction(
   }
 
   const redeem = {
-    output: redeemOutput,
+    output: scripts.slashingScript,
     redeemVersion: 192,
   };
-
-  const scriptTree: Taptree = [
-    {
-      output: scripts.slashingScript,
-    },
-    [{ output: scripts.unbondingScript }, { output: scripts.timelockScript }],
-  ];
 
   const p2tr = payments.p2tr({
     internalPubkey,
@@ -393,7 +464,7 @@ export function slashingTransaction(
   // Change output contains unbonding timelock script
   const changeOutput = payments.p2tr({
     internalPubkey,
-    scriptTree: { output: scripts.changeScript },
+    scriptTree: { output: scripts.unbondingTimelockScript },
     network,
   });
 

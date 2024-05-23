@@ -346,28 +346,21 @@ There are two types of slashing transactions:
 1. Slashing of the staking transaction when no unbonding has been performed:
 
 ```ts
-import { Taptree } from "bitcoinjs-lib/src/types";
-import { slashingTransaction } from "btc-staking-ts";
+import { slashingNoUnbondingTransaction } from "btc-staking-ts";
 import { Psbt, Transaction } from "bitcoinjs-lib";
-
-const slashingScriptTree: Taptree = [
-  {
-    output: slashingScript,
-  },
-  [{ output: unbondingScript }, { output: timelockScript }],
-];
 
 const outputIndex: number = 0;
 
-const unsignedSlashingPsbt: {psbt: Psbt} = slashingTransaction(
+const unsignedSlashingPsbt: {psbt: Psbt} = slashingNoUnbondingTransaction(
   scripts: {
     slashingScript,
+    unbondingScript,
+    timelockScript,
+    unbondingTimelockScript,
   },
-  slashingScriptTree,
   stakingTx,
   slashingAddress,
   slashingRate,
-  unbondingTimelockScript,
   minimumSlashingFee,
   network,
   outputIndex,
@@ -379,32 +372,23 @@ const slashingTx = Psbt.fromHex(signedPsbt).extractTransaction();
 
 2. Slashing of the unbonding transaction in the case of on-demand unbonding:
 
-```ts
-const unbondingScriptTree: Taptree = [
-  {
-    output: slashingScript,
-  },
-  { output: unbondingTimelockScript },
-];
-```
-
-Then create unsigned unbonding slashing transaction
+create unsigned unbonding slashing transaction
 
 ```ts
 import { Psbt, Transaction } from "bitcoinjs-lib";
-import { slashingTransaction } from "btc-staking-ts";
+import { slashOnDemandUnbondingTransaction } from "btc-staking-ts";
 
 const outputIndex: number = 0;
 
-const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashingTransaction(
+const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashOnDemandUnbondingTransaction(
   scripts: {
     slashingScript,
+    unbondingTimelockScript,
   },
   unbondingScriptTree,
   unbondingTx,
   slashingAddress,
   slashingRate,
-  unbondingTimelockScript,
   minimumSlashingFee,
   network,
   outputIndex
