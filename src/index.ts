@@ -75,7 +75,7 @@ const getStakingTxInputUTXOsAndFees = (
 //     and dataEmbedScript: Optional data embed script
 //   - amount, fee: Amount to stake and transaction fee
 //   - changeAddress: Address to send the change to
-//   - inputUTXOs: UTXOs to use as inputs for the transaction
+//   - inputUTXOs: all available UTXOs from the wallet
 //   - network: Bitcoin network
 //   - publicKeyNoCoord: Public key if the wallet is in taproot mode
 //   - lockHeight: Optional block height locktime to set for the transaction. i.e not mined until block height
