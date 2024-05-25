@@ -19,6 +19,8 @@ export { initBTCCurve, StakingScriptData };
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
 
+const BTC_DUST_SAT = 546;
+
 export interface PsbtTransactionResult {
   psbt: Psbt;
   fee: number;
@@ -128,7 +130,7 @@ export function stakingTransaction(
   }
 
   // Add a change output only if there's any amount leftover from the inputs
-  if (inputsSum > amount + fee) {
+  if ((inputsSum + BTC_DUST_SAT) > (amount + fee)) {
     psbt.addOutput({
       address: changeAddress,
       value: inputsSum - (amount + fee),
