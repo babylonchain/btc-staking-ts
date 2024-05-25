@@ -1,3 +1,5 @@
+import { UTXO } from "../types/UTXO";
+
 // Estimated size of a transaction input in bytes for fee calculation purpose only
 export const INPUT_SIZE_FOR_FEE_CAL = 180;
 
@@ -15,4 +17,7 @@ export const getEstimatedFee = (
         numOutputs * OUTPUT_SIZE_FOR_FEE_CAL +
         TX_BUFFER_SIZE_FOR_FEE_CAL + numInputs
     ) * feeRate;
+}
+export const inputValueSum = (inputUTXOs: UTXO[]): number => {
+    return inputUTXOs.reduce((acc, utxo) => acc + utxo.value, 0);
 }

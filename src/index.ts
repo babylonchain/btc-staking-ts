@@ -12,18 +12,53 @@ import { internalPubkey } from "./constants/internalPubkey";
 import { initBTCCurve } from "./utils/curve";
 import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
 import { UTXO } from "./types/UTXO";
-import { getEstimatedFee } from "./utils/fee";
+import { getEstimatedFee, inputValueSum } from "./utils/fee";
 
 export { initBTCCurve, StakingScriptData };
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
-
 const BTC_DUST_SAT = 546;
 
 export interface PsbtTransactionResult {
   psbt: Psbt;
   fee: number;
+}
+
+const getStakingTxInputUTXOsAndFees = (
+  availableUTXOs: UTXO[],
+  stakingAmount: number,
+  feeRate: number,
+  numOfOutputs: number,
+): {
+  selectedUTXOs: UTXO[],
+  fee: number,
+} => {
+  if (availableUTXOs.length === 0) {
+    throw new Error("Insufficient funds");
+  }
+
+  let selectedUTXOs: UTXO[] = [];
+  let accumulatedValue = 0;
+  let estimatedFee = getEstimatedFee(feeRate, 1, numOfOutputs); // Initial fee estimate with 1 input
+
+  for (const utxo of availableUTXOs) {
+    selectedUTXOs.push(utxo);
+    accumulatedValue += utxo.value;
+    estimatedFee = getEstimatedFee(feeRate, selectedUTXOs.length, numOfOutputs);
+
+    if (accumulatedValue >= stakingAmount + estimatedFee) {
+      break;
+    }
+  }
+  if (accumulatedValue < stakingAmount + estimatedFee) {
+    throw new Error("Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees.");
+  }
+
+  return {
+    selectedUTXOs,
+    fee: estimatedFee,
+  };
 }
 
 // stakingTransaction constructs an unsigned BTC Staking transaction
@@ -72,12 +107,18 @@ export function stakingTransaction(
     throw new Error("Invalid public key");
   }
 
+  // Calculate the number of outputs based on the presence of the data embed script
+  // We have 2 outputs by default: staking output and change output
+  const outputSize = scripts.dataEmbedScript ? 3 : 2;
+  const { selectedUTXOs, fee } = getStakingTxInputUTXOsAndFees(
+    inputUTXOs, amount, feeRate, outputSize
+  );
+
   // Create a partially signed transaction
   const psbt = new Psbt({ network });
   // Add the UTXOs provided as inputs to the transaction
-  let inputsSum = 0;
-  for (let i = 0; i < inputUTXOs.length; ++i) {
-    const input = inputUTXOs[i];
+  for (let i = 0; i < selectedUTXOs.length; ++i) {
+    const input = selectedUTXOs[i];
     psbt.addInput({
       hash: input.txid,
       index: input.vout,
@@ -89,7 +130,6 @@ export function stakingTransaction(
       ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
       sequence: 0xfffffffd, // Enable locktime by setting the sequence value to (RBF-able)
     });
-    inputsSum += input.value;
   }
 
   const scriptTree: Taptree = [
@@ -120,23 +160,14 @@ export function stakingTransaction(
     });
   }
 
-  // Assumption made here that there will be amount leftover from the inputs
-  // which require an additional output to be added to the transaction
-  const outputSize = psbt.txOutputs.length + 1
-  const fee = getEstimatedFee(feeRate, inputUTXOs.length, outputSize);
-  // Check whether inputSum is enough to satisfy the staking amount
-  if (inputsSum < amount + fee) {
-    throw new Error("Insufficient funds");
-  }
-
   // Add a change output only if there's any amount leftover from the inputs
+  const inputsSum = inputValueSum(selectedUTXOs);
   if ((inputsSum + BTC_DUST_SAT) > (amount + fee)) {
     psbt.addOutput({
       address: changeAddress,
       value: inputsSum - (amount + fee),
     });
   }
-
 
   // Set the locktime field if provided. If not provided, the locktime will be set to 0 by default
   // Only height based locktime is supported
