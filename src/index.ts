@@ -43,7 +43,7 @@ const BTC_DUST_SAT = 546;
  * - publicKeyNoCoord: Public key if the wallet is in taproot mode.
  * - lockHeight: Optional block height locktime to set for the transaction (i.e., not mined until the block height).
  *
- * @param {Object} scripts - Various scripts used in the transaction. 
+ * @param {Object} scripts - Scripts used to construct the taproot output. 
  * such as timelockScript, unbondingScript, slashingScript, and dataEmbedScript.
  * @param {number} amount - The amount to stake.
  * @param {string} changeAddress - The address to send the change to.
@@ -170,7 +170,7 @@ export function stakingTransaction(
  * This transaction spends the unbonded output from the staking transaction.
  *
  * Inputs:
- * - scripts: Various scripts used in the transaction.
+ * - scripts: Scripts used to construct the taproot output.
  *   - unbondingTimelockScript: Script for the unbonding timelock condition.
  *   - slashingScript: Script for the slashing condition.
  * - tx: The original staking transaction.
@@ -227,7 +227,7 @@ export function withdrawEarlyUnbondedTransaction(
  * This transaction spends the unbonded output from the staking transaction when the timelock has expired.
  *
  * Inputs:
- * - scripts: Various scripts used in the transaction.
+ * - scripts: Scripts used to construct the taproot output.
  *   - timelockScript: Script for the timelock condition.
  *   - slashingScript: Script for the slashing condition.
  *   - unbondingScript: Script for the unbonding condition.
@@ -357,9 +357,12 @@ function withdrawalTransaction(
     sequence: timelock,
   });
 
+  const outputValue = tx.outs[outputIndex].value;
+  if (outputValue < BTC_DUST_SAT) {
+    throw new Error("Output value is less than dust limit");
+  }
   // withdraw tx always has 1 output only
   const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, 1);
-
   psbt.addOutput({
     address: withdrawalAddress,
     value: tx.outs[outputIndex].value - estimatedFee,
@@ -382,7 +385,7 @@ function withdrawalTransaction(
  * - The second output sends `input * (1 - slashing_rate) - fee` funds back to the user's address.
  *
  * Inputs:
- * - scripts: Various scripts used in the transaction.
+ * - scripts: Scripts used to construct the taproot output.
  *   - slashingScript: Script for the slashing condition.
  *   - timelockScript: Script for the timelock condition.
  *   - unbondingScript: Script for the unbonding condition.
@@ -449,7 +452,7 @@ export function slashTimelockUnbondedTransaction(
  * - The second output sends `input * (1 - slashing_rate) - fee` funds back to the user's address.
  *
  * Inputs:
- * - scripts: Various scripts used in the transaction.
+ * - scripts: Scripts used to construct the taproot output.
  *   - slashingScript: Script for the slashing condition.
  *   - unbondingTimelockScript: Script for the unbonding timelock condition.
  * - transaction: The original staking transaction.
@@ -517,7 +520,7 @@ export function slashEarlyUnbondedTransaction(
  * - The second output sends `input * (1 - slashing_rate) - fee` funds back to the user's address.
  *
  * Inputs:
- * - scripts: Various scripts used in the transaction.
+ * - scripts: Scripts used to construct the taproot output.
  *   - slashingScript: Script for the slashing condition.
  *   - unbondingTimelockScript: Script for the unbonding timelock condition.
  * - transaction: The original staking transaction.

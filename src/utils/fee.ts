@@ -9,6 +9,7 @@ export const OUTPUT_SIZE_FOR_FEE_CAL = 34;
 // Buffer size for a transaction in bytes for fee calculation purpose only
 export const TX_BUFFER_SIZE_FOR_FEE_CAL = 10;
 
+// Estimated size of an OP_RETURN output in bytes for fee calculation purpose only
 export const ESTIMATED_OP_RETURN_SIZE = 40;
 
 /**
@@ -44,15 +45,6 @@ export const inputValueSum = (inputUTXOs: UTXO[]): number => {
     return inputUTXOs.reduce((acc, utxo) => acc + utxo.value, 0);
 }
 
-// getStakingTxInputUTXOsAndFees returns the selected UTXOs and the fee for the staking transaction
-// by selecting the UTXOs with the highest value that can cover the staking amount and fees
-// - availableUTXOs: All available UTXOs from the wallet
-// - stakingAmount: Amount to stake
-// - feeRate: Fee rate for the transaction
-// - numOfOutputs: Number of outputs in the transaction
-// Returns:
-// - selectedUTXOs: The selected UTXOs to cover the staking amount and fees
-// - fee: The total fee amount of the transaction
 /**
  * Selects UTXOs and calculates the fee for a staking transaction.
  *
