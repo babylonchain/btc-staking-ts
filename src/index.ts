@@ -164,7 +164,32 @@ export function stakingTransaction(
   };
 }
 
-// Delegation is manually unbonded
+/**
+ * Constructs a withdrawal transaction for manually unbonded delegation.
+ *
+ * This transaction spends the unbonded output from the staking transaction.
+ *
+ * Inputs:
+ * - scripts: Various scripts used in the transaction.
+ *   - unbondingTimelockScript: Script for the unbonding timelock condition.
+ *   - slashingScript: Script for the slashing condition.
+ * - tx: The original staking transaction.
+ * - withdrawalAddress: The address to send the withdrawn funds to.
+ * - network: The Bitcoin network.
+ * - feeRate: The fee rate for the transaction in satoshis per byte.
+ * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
+ *
+ * Returns:
+ * - psbt: The partially signed transaction (PSBT).
+ *
+ * @param {Object} scripts - The scripts used in the transaction.
+ * @param {Transaction} tx - The original staking transaction.
+ * @param {string} withdrawalAddress - The address to send the withdrawn funds to.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
+ * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
+ * @returns {PsbtTransactionResult} An object containing the partially signed transaction (PSBT).
+ */
 export function withdrawEarlyUnbondedTransaction(
   scripts: {
     unbondingTimelockScript: Buffer,
@@ -196,7 +221,33 @@ export function withdrawEarlyUnbondedTransaction(
   );
 }
 
-// Delegation is naturally unbonded
+/**
+ * Constructs a withdrawal transaction for naturally unbonded delegation.
+ *
+ * This transaction spends the unbonded output from the staking transaction when the timelock has expired.
+ *
+ * Inputs:
+ * - scripts: Various scripts used in the transaction.
+ *   - timelockScript: Script for the timelock condition.
+ *   - slashingScript: Script for the slashing condition.
+ *   - unbondingScript: Script for the unbonding condition.
+ * - tx: The original staking transaction.
+ * - withdrawalAddress: The address to send the withdrawn funds to.
+ * - network: The Bitcoin network.
+ * - feeRate: The fee rate for the transaction in satoshis per byte.
+ * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
+ *
+ * Returns:
+ * - psbt: The partially signed transaction (PSBT).
+ *
+ * @param {Object} scripts - The scripts used in the transaction.
+ * @param {Transaction} tx - The original staking transaction.
+ * @param {string} withdrawalAddress - The address to send the withdrawn funds to.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
+ * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
+ * @returns {PsbtTransactionResult} An object containing the partially signed transaction (PSBT).
+ */
 export function withdrawTimelockUnbondedTransaction(
   scripts: {
     timelockScript: Buffer,
