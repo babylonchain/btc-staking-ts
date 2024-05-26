@@ -88,7 +88,7 @@ const unbondingTime: number = minUnbondingTime;
 //    staking contract:
 //    - `inputUTXOs: UTXO[]`: The list of UTXOs that will be used as an input
 //       to fund the staking transaction.
-//    - `stakingFee: number`: The fee of the transaction in satoshis.
+//    - `feeRate: number`: The fee per tx byte in satoshis.
 //    - `changeAddress: string`: BTC wallet change address, Taproot or Native
 //       Segwit.
 //    - `network: network to work with, either networks.testnet
@@ -107,10 +107,28 @@ const inputUTXOs = [
     scriptPubKey: "0014505049839bc32f869590adc5650c584e17c917fc",
   },
 ];
-const stakingFee: number = 500;
+const feeRate: number = 18;
 const changeAddress: string = btcWallet.address;
 const network = networks.testnet;
 ```
+
+### Fee Calculation
+The fee calculation in the btc-staking-ts library is based on an estimated size 
+of the transaction in virtual bytes (vB). This estimation helps in calculating 
+the appropriate fee to include in the transaction to ensure it is processed by 
+the Bitcoin network efficiently.
+
+The fee estimation formula used is:
+```
+numInputs * 180 + numOutputs * 34 + 10 + numInputs + 40
+```
+
+This accounts for:
+- `180 vB` per input
+- `34 vB` per output
+- `10 vB` fixed buffer
+- `numInputs` additional factor
+- `40 vB` buffer for the op_return output
 
 ### Create the Staking Contract
 
@@ -163,21 +181,24 @@ import { stakingTransaction } from "btc-staking-ts";
 import { Psbt, Transaction } from "bitcoinjs-lib";
 
 // stakingTransaction constructs an unsigned BTC Staking transaction
-const unsignedStakingTx: Psbt = stakingTransaction(
-  timelockScript,
-  unbondingScript,
-  slashingScript,
+const unsignedStakingPsbt: {psbt: Psbt, fee: number} = stakingTransaction(
+  scripts: {
+    timelockScript,
+    unbondingScript,
+    slashingScript,
+    dataEmbedScript
+  },
   stakingAmount,
-  stakingFee,
   changeAddress,
   inputUTXOs,
   network(),
+  feeRate,
   btcWallet.isTaproot ? btcWallet.publicKeyNoCoord() : undefined,
-  dataEmbedScript,
   lockHeight,
 );
 
-const stakingTx: Promise<Transaction> = await btcWallet.signTransaction(unsignedStakingTx: Psbt);
+const signedStakingPsbt = await btcWallet.signPsbt(unsignedStakingPsbt.psbt.toHex());
+const stakingTx = Psbt.fromHex(signedStakingPsbt).extractTransaction();
 ```
 
 Public key is needed only if the wallet is in Taproot mode, for `tapInternalKey`.
@@ -196,17 +217,20 @@ import { Psbt, Transaction } from "bitcoinjs-lib";
 // Unbonding fee in satoshis. number
 const unbondingFee: number = 500;
 
-const unsignedUnbondingTx: Psbt = unbondingTransaction(
-  unbondingScript,
-  unbondingTimelockScript,
-  timelockScript,
-  slashingScript,
+const unsignedUnbondingPsbt: {psbt: Psbt} = unbondingTransaction(
+  scripts: {
+    unbondingScript,
+    unbondingTimelockScript,
+    timelockScript,
+    slashingScript,
+  },
   stakingTx,
   unbondingFee,
   network,
 );
 
-const unbondingTx: Promise<Transaction> = await btcWallet.signTransaction(unsignedUnbondingTx: Psbt);
+const signedUnbondingPsbt = await signPsbt(unsignedUnbondingPsbt.psbt.toHex());
+const unbondingTx = Psbt.fromHex(signedUnbondingPsbt).extractTransaction();
 ```
 
 #### Collecting Unbonding Signatures
@@ -272,14 +296,16 @@ import { withdrawTimelockUnbondedTransaction } from "btc-staking-ts";
 // staking transaction. Transaction
 const stakingTx: Transaction = undefined;
 
-const unsignedWithdrawalTx: Psbt = withdrawTimelockUnbondedTransaction(
-  timelockScript,
-  slashingScript,
-  unbondingScript,
+const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawTimelockUnbondedTransaction(
+  scripts: {
+    timelockScript,
+    slashingScript,
+    unbondingScript,  
+  },
   stakingTx,
   btcWallet.address,
-  withdrawalFee,
   network,
+  feeRate,
   stakingOutputIndex,
 );
 ```
@@ -294,15 +320,20 @@ import { withdrawEarlyUnbondedTransaction } from "btc-staking-ts";
 // unbonding transaction. Transaction
 const unbondingTx: Transaction = undefined;
 
-const unsignedWithdrawalTx: Psbt = withdrawEarlyUnbondedTransaction(
-  unbondingTimelockScript,
-  slashingScript,
-  unbondingTx,
+const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawEarlyUnbondedTransaction(
+  scripts: {
+    unbondingTimelockScript,
+    slashingScript,
+    unbondingTx,  
+  },
   withdrawalAddress,
-  withdrawalFee,
   network,
+  feeRate,
   stakingOutputIndex,
 );
+
+const signedWithdrawalPsbt = await signPsbt(unsignedWithdrawalPsbt.psbt.toHex());
+const withdrawalTransaction = Psbt.fromHex(signedWithdrawalPsbt).extractTransaction();
 ```
 
 ### Create slashing transaction
@@ -333,64 +364,54 @@ There are two types of slashing transactions:
 1. Slashing of the staking transaction when no unbonding has been performed:
 
 ```ts
-import { Taptree } from "bitcoinjs-lib/src/types";
-import { slashingTransaction } from "btc-staking-ts";
+import { slashTimelockUnbondedTransaction } from "btc-staking-ts";
 import { Psbt, Transaction } from "bitcoinjs-lib";
-
-const slashingScriptTree: Taptree = [
-  {
-    output: slashingScript,
-  },
-  [{ output: unbondingScript }, { output: timelockScript }],
-];
 
 const outputIndex: number = 0;
 
-const unsignedSlashingTx: Psbt = slashingTransaction(
-  slashingScriptTree,
-  slashingScript,
+const unsignedSlashingPsbt: {psbt: Psbt} = slashTimelockUnbondedTransaction(
+  scripts: {
+    slashingScript,
+    unbondingScript,
+    timelockScript,
+    unbondingTimelockScript,
+  },
   stakingTx,
   slashingAddress,
   slashingRate,
-  unbondingTimelockScript,
   minimumSlashingFee,
   network,
   outputIndex,
 );
 
-const slashingTx: Promise<Transaction> = await btcWallet.signTransaction(unsignedSlashingTx: Psbt);
+const signedSlashingPsbt = await signPsbt(unsignedSlashingPsbt.psbt.toHex());
+const slashingTx = Psbt.fromHex(signedSlashingPsbt).extractTransaction();
 ```
 
 2. Slashing of the unbonding transaction in the case of on-demand unbonding:
 
-```ts
-const unbondingScriptTree: Taptree = [
-  {
-    output: slashingScript,
-  },
-  { output: unbondingTimelockScript },
-];
-```
-
-Then create unsigned unbonding slashing transaction
+create unsigned unbonding slashing transaction
 
 ```ts
 import { Psbt, Transaction } from "bitcoinjs-lib";
-import { slashingTransaction } from "btc-staking-ts";
+import { slashEarlyUnbondedTransaction } from "btc-staking-ts";
 
 const outputIndex: number = 0;
 
-const unsignedUnbondingSlashingTx: Psbt = slashingTransaction(
+const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashEarlyUnbondedTransaction(
+  scripts: {
+    slashingScript,
+    unbondingTimelockScript,
+  },
   unbondingScriptTree,
-  slashingScript,
   unbondingTx,
   slashingAddress,
   slashingRate,
-  unbondingTimelockScript,
   minimumSlashingFee,
   network,
   outputIndex
 );
 
-const unbondingSlashingTx: Promise<Transaction> = await btcWallet.signTransaction(unsignedUnbondingSlashingTx: Psbt);
+const signedUnbondingSlashingPsbt = await signPsbt(unsignedUnbondingSlashingPsbt.psbt.toHex());
+const unbondingSlashingTx = Psbt.fromHex(signedUnbondingSlashingPsbt).extractTransaction();
 ```
