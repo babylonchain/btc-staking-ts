@@ -11,8 +11,9 @@ import { Taptree } from "bitcoinjs-lib/src/types";
 import { internalPubkey } from "./constants/internalPubkey";
 import { initBTCCurve } from "./utils/curve";
 import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
+import { PsbtTransactionResult } from "./types/transaction";
 import { UTXO } from "./types/UTXO";
-import { getEstimatedFee, inputValueSum } from "./utils/fee";
+import { getEstimatedFee, inputValueSum, getStakingTxInputUTXOsAndFees } from "./utils/fee";
 
 export { initBTCCurve, StakingScriptData };
 
@@ -20,65 +21,41 @@ export { initBTCCurve, StakingScriptData };
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
 const BTC_DUST_SAT = 546;
 
-export interface PsbtTransactionResult {
-  psbt: Psbt;
-  fee: number;
-}
-
-const getStakingTxInputUTXOsAndFees = (
-  availableUTXOs: UTXO[],
-  stakingAmount: number,
-  feeRate: number,
-  numOfOutputs: number,
-): {
-  selectedUTXOs: UTXO[],
-  fee: number,
-} => {
-  if (availableUTXOs.length === 0) {
-    throw new Error("Insufficient funds");
-  }
-  // Sort available UTXOs from highest to lowest value
-  availableUTXOs.sort((a, b) => b.value - a.value);
-
-  let selectedUTXOs: UTXO[] = [];
-  let accumulatedValue = 0;
-  let estimatedFee = getEstimatedFee(feeRate, 1, numOfOutputs); // Initial fee estimate with 1 input
-
-  for (const utxo of availableUTXOs) {
-    selectedUTXOs.push(utxo);
-    accumulatedValue += utxo.value;
-    estimatedFee = getEstimatedFee(feeRate, selectedUTXOs.length, numOfOutputs);
-
-    if (accumulatedValue >= stakingAmount + estimatedFee) {
-      break;
-    }
-  }
-  if (accumulatedValue < stakingAmount + estimatedFee) {
-    throw new Error("Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees.");
-  }
-
-  return {
-    selectedUTXOs,
-    fee: estimatedFee,
-  };
-}
-
-// stakingTransaction constructs an unsigned BTC Staking transaction
-// - Outputs:
-//   - psbt: 
-//      - The first one corresponds to the staking script with a certain amount
-//      - The second one corresponds to the change from spending the amount and the transaction fee
-//      - In case of data embed script, it will be added as the second output, fee as the third
-//   - fee: The fee amount of the transaction
-// - Inputs:
-//   - scripts: timelockScript, unbondingScript, slashingScript: Scripts for different transaction types
-//     and dataEmbedScript: Optional data embed script
-//   - amount, fee: Amount to stake and transaction fee
-//   - changeAddress: Address to send the change to
-//   - inputUTXOs: all available UTXOs from the wallet
-//   - network: Bitcoin network
-//   - publicKeyNoCoord: Public key if the wallet is in taproot mode
-//   - lockHeight: Optional block height locktime to set for the transaction. i.e not mined until block height
+/**
+ * Constructs an unsigned BTC Staking transaction in psbt format.
+ *
+ * Outputs:
+ * - psbt: 
+ *   - The first output corresponds to the staking script with the specified amount.
+ *   - The second output corresponds to the change from spending the amount and the transaction fee.
+ *   - If a data embed script is provided, it will be added as the second output, and the fee will be the third output.
+ * - fee: The total fee amount for the transaction.
+ *
+ * Inputs:
+ * - scripts: 
+ *   - timelockScript, unbondingScript, slashingScript: Scripts for different transaction types.
+ *   - dataEmbedScript: Optional data embed script.
+ * - amount: Amount to stake.
+ * - changeAddress: Address to send the change to.
+ * - inputUTXOs: All available UTXOs from the wallet.
+ * - network: Bitcoin network.
+ * - feeRate: Fee rate in satoshis per byte.
+ * - publicKeyNoCoord: Public key if the wallet is in taproot mode.
+ * - lockHeight: Optional block height locktime to set for the transaction (i.e., not mined until the block height).
+ *
+ * @param {Object} scripts - Various scripts used in the transaction. 
+ * such as timelockScript, unbondingScript, slashingScript, and dataEmbedScript.
+ * @param {number} amount - The amount to stake.
+ * @param {string} changeAddress - The address to send the change to.
+ * @param {UTXO[]} inputUTXOs - All available UTXOs from the wallet.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @param {number} feeRate - The fee rate in satoshis per byte.
+ * @param {Buffer} [publicKeyNoCoord] - The public key if the wallet is in taproot mode.
+ * @param {number} [lockHeight] - The optional block height locktime.
+ * @returns {PsbtTransactionResult} The partially signed transaction and the fee.
+ * @throws Will throw an error if the amount or fee rate is less than or equal 
+ * to 0, if the change address is invalid, or if the public key is invalid.
+ */
 export function stakingTransaction(
   scripts: {
     timelockScript: Buffer,
@@ -111,9 +88,9 @@ export function stakingTransaction(
 
   // Calculate the number of outputs based on the presence of the data embed script
   // We have 2 outputs by default: staking output and change output
-  const outputSize = scripts.dataEmbedScript ? 3 : 2;
+  const numOutputs = scripts.dataEmbedScript ? 3 : 2;
   const { selectedUTXOs, fee } = getStakingTxInputUTXOsAndFees(
-    inputUTXOs, amount, feeRate, outputSize
+    inputUTXOs, amount, feeRate, numOutputs
   );
 
   // Create a partially signed transaction
@@ -164,7 +141,8 @@ export function stakingTransaction(
 
   // Add a change output only if there's any amount leftover from the inputs
   const inputsSum = inputValueSum(selectedUTXOs);
-  if ((inputsSum + BTC_DUST_SAT) > (amount + fee)) {
+  // Check if the change amount is above the dust limit, and if so, add it as a change output
+  if ((inputsSum - (amount + fee)) > BTC_DUST_SAT) {
     psbt.addOutput({
       address: changeAddress,
       value: inputsSum - (amount + fee),
@@ -342,19 +320,46 @@ function withdrawalTransaction(
   };
 }
 
-// Slashing of the staking transaction when no unbonding has been performed
-// it spends the staking output of the staking transaction
-// Outputs:
-//   - The first one sends input * slashing_rate funds to the slashing address
-//   - The second one sends input * (1-slashing_rate) - fee funds back to the user’s address
-export function slashingNoUnbondingTransaction(
+/**
+ * Constructs a slashing transaction for a staking output without prior unbonding.
+ *
+ * This transaction spends the staking output of the staking transaction and distributes the funds
+ * according to the specified slashing rate.
+ *
+ * Outputs:
+ * - The first output sends `input * slashing_rate` funds to the slashing address.
+ * - The second output sends `input * (1 - slashing_rate) - fee` funds back to the user's address.
+ *
+ * Inputs:
+ * - scripts: Various scripts used in the transaction.
+ *   - slashingScript: Script for the slashing condition.
+ *   - timelockScript: Script for the timelock condition.
+ *   - unbondingScript: Script for the unbonding condition.
+ *   - unbondingTimelockScript: Script for the unbonding timelock condition.
+ * - transaction: The original staking transaction.
+ * - slashingAddress: The address to send the slashed funds to.
+ * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
+ * - minimumFee: The minimum fee for the transaction in satoshis.
+ * - network: The Bitcoin network.
+ * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
+ *
+ * @param {Object} scripts - The scripts used in the transaction.
+ * @param {Transaction} transaction - The original staking transaction.
+ * @param {string} slashingAddress - The address to send the slashed funds to.
+ * @param {number} slashingRate - The rate at which the funds are slashed.
+ * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
+ * @returns {{ psbt: Psbt }} An object containing the partially signed transaction (PSBT).
+ */
+export function slashTimelockUnbondedTransaction(
   scripts: {
     slashingScript: Buffer,
     timelockScript: Buffer,
     unbondingScript: Buffer,
     unbondingTimelockScript: Buffer,
   },
-  transaction: Transaction,
+  stakingTransaction: Transaction,
   slashingAddress: string,
   slashingRate: number,
   minimumFee: number,
@@ -373,7 +378,7 @@ export function slashingNoUnbondingTransaction(
       slashingScript: scripts.slashingScript,
     },
     slashingScriptTree,
-    transaction,
+    stakingTransaction,
     slashingAddress,
     slashingRate,
     minimumFee,
@@ -382,17 +387,45 @@ export function slashingNoUnbondingTransaction(
   );
 }
 
-// Slashing of the unbonding transaction in the case of on-demand unbonding
-// it spends the staking output of the staking transaction
-// Outputs:
-//   - The first one sends input * slashing_rate funds to the slashing address
-//   - The second one sends input * (1-slashing_rate) - fee funds back to the user’s address
-export function slashOnDemandUnbondingTransaction(
+/**
+ * Constructs a slashing transaction for an early unbonded transaction.
+ *
+ * This transaction spends the staking output of the staking transaction and distributes the funds
+ * according to the specified slashing rate.
+ *
+ * Outputs:
+ * - The first output sends `input * slashing_rate` funds to the slashing address.
+ * - The second output sends `input * (1 - slashing_rate) - fee` funds back to the user's address.
+ *
+ * Inputs:
+ * - scripts: Various scripts used in the transaction.
+ *   - slashingScript: Script for the slashing condition.
+ *   - unbondingTimelockScript: Script for the unbonding timelock condition.
+ * - transaction: The original staking transaction.
+ * - slashingAddress: The address to send the slashed funds to.
+ * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
+ * - minimumFee: The minimum fee for the transaction in satoshis.
+ * - network: The Bitcoin network.
+ * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
+ *
+ * Returns:
+ * - psbt: The partially signed transaction (PSBT).
+ *
+ * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
+ * @param {Transaction} transaction - The original staking transaction.
+ * @param {string} slashingAddress - The address to send the slashed funds to.
+ * @param {number} slashingRate - The rate at which the funds are slashed.
+ * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
+ * @returns {{ psbt: Psbt }} An object containing the partially signed transaction (PSBT).
+ */
+export function slashEarlyUnbondedTransaction(
   scripts: {
     slashingScript: Buffer,
     unbondingTimelockScript: Buffer,
   },
-  transaction: Transaction,
+  stakingTransaction: Transaction,
   slashingAddress: string,
   slashingRate: number,
   minimumFee: number,
@@ -413,7 +446,7 @@ export function slashOnDemandUnbondingTransaction(
       slashingScript: scripts.slashingScript,
     },
     unbondingScriptTree,
-    transaction,
+    stakingTransaction,
     slashingAddress,
     slashingRate,
     minimumFee,
@@ -422,11 +455,36 @@ export function slashOnDemandUnbondingTransaction(
   );
 }
 
-// slashingTransaction generates a transaction that
-// spends the staking output of the staking transaction
-// Outputs:
-//   - The first one sends input * slashing_rate funds to the slashing address
-//   - The second one sends input * (1-slashing_rate) - fee funds back to the user’s address
+/**
+ * Constructs a slashing transaction for an on-demand unbonding.
+ *
+ * This transaction spends the staking output of the staking transaction and distributes the funds
+ * according to the specified slashing rate.
+ *
+ * Outputs:
+ * - The first output sends `input * slashing_rate` funds to the slashing address.
+ * - The second output sends `input * (1 - slashing_rate) - fee` funds back to the user's address.
+ *
+ * Inputs:
+ * - scripts: Various scripts used in the transaction.
+ *   - slashingScript: Script for the slashing condition.
+ *   - unbondingTimelockScript: Script for the unbonding timelock condition.
+ * - transaction: The original staking transaction.
+ * - slashingAddress: The address to send the slashed funds to.
+ * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
+ * - minimumFee: The minimum fee for the transaction in satoshis.
+ * - network: The Bitcoin network.
+ * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
+ *
+ * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
+ * @param {Transaction} transaction - The original staking transaction.
+ * @param {string} slashingAddress - The address to send the slashed funds to.
+ * @param {number} slashingRate - The rate at which the funds are slashed.
+ * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
+ * @returns {{ psbt: Psbt }} An object containing the partially signed transaction (PSBT).
+ */
 function slashingTransaction(
   scripts: {
     unbondingTimelockScript: Buffer,

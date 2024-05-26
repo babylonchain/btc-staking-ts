@@ -112,6 +112,24 @@ const changeAddress: string = btcWallet.address;
 const network = networks.testnet;
 ```
 
+### Fee Calculation
+The fee calculation in the btc-staking-ts library is based on an estimated size 
+of the transaction in virtual bytes (vB). This estimation helps in calculating 
+the appropriate fee to include in the transaction to ensure it is processed by 
+the Bitcoin network efficiently.
+
+The fee estimation formula used is:
+```
+numInputs * 180 + numOutputs * 34 + 10 + numInputs + 40
+```
+
+This accounts for:
+- `180 vB` per input
+- `34 vB` per output
+- `10 vB` fixed buffer
+- `numInputs` additional factor
+- `40 vB` buffer for the op_return output
+
 ### Create the Staking Contract
 
 After defining its parameters,
@@ -179,8 +197,8 @@ const unsignedStakingPsbt: {psbt: Psbt, fee: number} = stakingTransaction(
   lockHeight,
 );
 
-const signedPsbt = await btcWallet.signPsbt(unsignedStakingPsbt.psbt.toHex());
-const stakingTx = Psbt.fromHex(signedPsbt).extractTransaction();
+const signedStakingPsbt = await btcWallet.signPsbt(unsignedStakingPsbt.psbt.toHex());
+const stakingTx = Psbt.fromHex(signedStakingPsbt).extractTransaction();
 ```
 
 Public key is needed only if the wallet is in Taproot mode, for `tapInternalKey`.
@@ -211,8 +229,8 @@ const unsignedUnbondingPsbt: {psbt: Psbt} = unbondingTransaction(
   network,
 );
 
-const signedPsbt = await signPsbt(unsignedUnbondingPsbt.psbt.toHex());
-const unbondingTx = Psbt.fromHex(signedPsbt).extractTransaction();
+const signedUnbondingPsbt = await signPsbt(unsignedUnbondingPsbt.psbt.toHex());
+const unbondingTx = Psbt.fromHex(signedUnbondingPsbt).extractTransaction();
 ```
 
 #### Collecting Unbonding Signatures
@@ -314,8 +332,8 @@ const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawEarlyUnbondedT
   stakingOutputIndex,
 );
 
-const signedPsbt = await signPsbt(unsignedWithdrawalPsbt.psbt.toHex());
-const withdrawalTransaction = Psbt.fromHex(signedPsbt).extractTransaction();
+const signedWithdrawalPsbt = await signPsbt(unsignedWithdrawalPsbt.psbt.toHex());
+const withdrawalTransaction = Psbt.fromHex(signedWithdrawalPsbt).extractTransaction();
 ```
 
 ### Create slashing transaction
@@ -346,12 +364,12 @@ There are two types of slashing transactions:
 1. Slashing of the staking transaction when no unbonding has been performed:
 
 ```ts
-import { slashingNoUnbondingTransaction } from "btc-staking-ts";
+import { slashTimelockUnbondedTransaction } from "btc-staking-ts";
 import { Psbt, Transaction } from "bitcoinjs-lib";
 
 const outputIndex: number = 0;
 
-const unsignedSlashingPsbt: {psbt: Psbt} = slashingNoUnbondingTransaction(
+const unsignedSlashingPsbt: {psbt: Psbt} = slashTimelockUnbondedTransaction(
   scripts: {
     slashingScript,
     unbondingScript,
@@ -366,8 +384,8 @@ const unsignedSlashingPsbt: {psbt: Psbt} = slashingNoUnbondingTransaction(
   outputIndex,
 );
 
-const signedPsbt = await signPsbt(unsignedSlashingPsbt.psbt.toHex());
-const slashingTx = Psbt.fromHex(signedPsbt).extractTransaction();
+const signedSlashingPsbt = await signPsbt(unsignedSlashingPsbt.psbt.toHex());
+const slashingTx = Psbt.fromHex(signedSlashingPsbt).extractTransaction();
 ```
 
 2. Slashing of the unbonding transaction in the case of on-demand unbonding:
@@ -376,11 +394,11 @@ create unsigned unbonding slashing transaction
 
 ```ts
 import { Psbt, Transaction } from "bitcoinjs-lib";
-import { slashOnDemandUnbondingTransaction } from "btc-staking-ts";
+import { slashEarlyUnbondedTransaction } from "btc-staking-ts";
 
 const outputIndex: number = 0;
 
-const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashOnDemandUnbondingTransaction(
+const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashEarlyUnbondedTransaction(
   scripts: {
     slashingScript,
     unbondingTimelockScript,
@@ -394,6 +412,6 @@ const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashOnDemandUnbondingTransa
   outputIndex
 );
 
-const signedPsbt = await signPsbt(unsignedUnbondingSlashingPsbt.psbt.toHex());
-const unbondingSlashingTx = Psbt.fromHex(signedPsbt).extractTransaction();
+const signedUnbondingSlashingPsbt = await signPsbt(unsignedUnbondingSlashingPsbt.psbt.toHex());
+const unbondingSlashingTx = Psbt.fromHex(signedUnbondingSlashingPsbt).extractTransaction();
 ```
