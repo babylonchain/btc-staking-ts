@@ -9,5 +9,9 @@
     "isolatedModules": true,
     "declaration": true
   },
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts"
+  ]
 }
