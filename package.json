@@ -31,6 +31,7 @@
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.30",
     "dts-bundle-generator": "^9.3.1",
+    "ecpair": "^2.1.0",
     "esbuild": "^0.20.2",
     "eslint": "^8.57.0",
     "eslint-plugin-prettier": "^5.1.3",
