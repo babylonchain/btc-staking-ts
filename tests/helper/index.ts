@@ -1,4 +1,4 @@
-import ECPairFactory from 'ecpair';
+import ECPairFactory from "ecpair";
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from 'bitcoinjs-lib';
 
@@ -19,6 +19,8 @@ export class DataGenerator {
         }
         let pk = publicKey.toString('hex');
         if (isNoCoordPk) {
+            // Check if the public key is in the "no coordinate" format
+            // If it is, remove the prefix
             if (pk.startsWith('02') || pk.startsWith('03')) {
                 // Remove the prefix to get the "no coordinate" format (just the x-coordinate)
                 pk = pk.slice(2);
