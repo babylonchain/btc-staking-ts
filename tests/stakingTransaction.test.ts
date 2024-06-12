@@ -1,6 +1,7 @@
 import { stakingTransaction } from "../src/index";
 import { networks } from "bitcoinjs-lib";
 import { UTXO } from "../src/types/UTXO";
+import { DataGenerator } from "./helper";
 
 // Mock the bitcoinjs-lib module
 jest.mock("bitcoinjs-lib", () => ({
@@ -16,6 +17,26 @@ jest.mock("bitcoinjs-lib", () => ({
 }));
 
 describe("stakingTransaction", () => {
+  // Define the network to be used in the tests (testnet in this case)
+  const network = networks.testnet;
+
+  // Initialize DataGenerator with the testnet network
+  const {
+    getNativeSegwitAddress,
+    generateRandomFeeRates,
+    generateRandomKeyPairs,
+  } = new DataGenerator(network);
+
+  // Define mock UTXOs to be used in the tests
+  const mockUTXOs: UTXO[] = [
+    {
+      txid: "0xDummyTxId", // Dummy transaction ID
+      vout: 0, // Output index
+      scriptPubKey: generateRandomKeyPairs().publicKey, // Script public key
+      value: 5000, // Value in satoshis
+    },
+  ];
+
   // Define mock scripts to be used in the tests
   const mockScripts = {
     timelockScript: Buffer.from("timelockScript", "hex"),
@@ -23,29 +44,16 @@ describe("stakingTransaction", () => {
     slashingScript: Buffer.from("slashingScript", "hex"),
   };
 
-  // Define mock UTXOs to be used in the tests
-  const mockUTXOs: UTXO[] = [
-    {
-      txid: "0xDummyTxId", // Dummy transaction ID
-      vout: 0, // Output index
-      scriptPubKey: "0xScriptPubKey", // Script public key
-      value: 5000, // Value in satoshis
-    },
-  ];
-
-  // Define the network to be used in the tests (testnet in this case)
-  const network = networks.testnet;
-
   it("should throw an error if the amount is less than or equal to 0", () => {
     // Test case: amount is 0
     expect(() =>
       stakingTransaction(
         mockScripts,
         0, // Invalid amount
-        "changeAddress",
+        getNativeSegwitAddress(generateRandomKeyPairs().publicKey),
         mockUTXOs,
         network,
-        1, // Valid fee rate
+        generateRandomFeeRates(), // Valid fee rate
       ),
     ).toThrow("Amount and fee rate must be bigger than 0");
 
@@ -54,10 +62,10 @@ describe("stakingTransaction", () => {
       stakingTransaction(
         mockScripts,
         -1, // Invalid amount
-        "changeAddress",
+        getNativeSegwitAddress(generateRandomKeyPairs().publicKey),
         mockUTXOs,
         network,
-        1, // Valid fee rate
+        generateRandomFeeRates(), // Valid fee rate
       ),
     ).toThrow("Amount and fee rate must be bigger than 0");
   });
@@ -68,7 +76,7 @@ describe("stakingTransaction", () => {
       stakingTransaction(
         mockScripts,
         1000, // Valid amount
-        "changeAddress",
+        getNativeSegwitAddress(generateRandomKeyPairs().publicKey),
         mockUTXOs,
         network,
         0, // Invalid fee rate
@@ -80,7 +88,7 @@ describe("stakingTransaction", () => {
       stakingTransaction(
         mockScripts,
         1000, // Valid amount
-        "changeAddress",
+        getNativeSegwitAddress(generateRandomKeyPairs().publicKey),
         mockUTXOs,
         network,
         -1, // Invalid fee rate
@@ -103,10 +111,10 @@ describe("stakingTransaction", () => {
       stakingTransaction(
         mockScripts,
         1000, // Valid amount
-        "changeAddress",
+        getNativeSegwitAddress(generateRandomKeyPairs().publicKey), // Valid change address
         mockUTXOs,
         network,
-        1, // Valid fee rate
+        generateRandomFeeRates(), // Valid fee rate
         invalidPublicKey, // Invalid public key
       ),
     ).toThrow("Invalid public key");

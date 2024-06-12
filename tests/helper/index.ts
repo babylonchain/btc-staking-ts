@@ -72,7 +72,7 @@ export class DataGenerator {
     getNativeSegwitAddress = (publicKey: string) => {
         const internalPubkey = Buffer.from(publicKey, 'hex');
         const { address } = bitcoin.payments.p2wpkh({
-            internalPubkey,
+            pubkey: internalPubkey,
             network: this.netWork,
           });
         if (!address) {
