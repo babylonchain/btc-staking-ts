@@ -14,7 +14,7 @@
     "prepare": "npm run build",
     "prepublishOnly": "npm run format && npm run lint",
     "preversion": "npm run format && npm run lint",
-    "tests": "jest --verbose --watchAll"
+    "tests": "jest --verbose"
   },
   "files": [
     "dist/*"

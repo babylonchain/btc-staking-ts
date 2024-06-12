@@ -16,10 +16,14 @@ jobs:
           name: Authenticate with NPM registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
       - run:
-          name: Install requirements and publish package
-          command: |
-            npm install
-            npm publish
+          name: Install requirements
+          command: npm install
+      - run:
+          name: Run tests
+          command: npm run test
+      - run:
+          name: Publish package
+          command: npm publish
 
 workflows:
   CI:

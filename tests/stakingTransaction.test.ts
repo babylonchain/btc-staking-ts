@@ -17,32 +17,26 @@ jest.mock("bitcoinjs-lib", () => ({
 }));
 
 describe("stakingTransaction", () => {
-  // Define the network to be used in the tests (testnet in this case)
-  const network = networks.testnet;
+  // Define the networks to be used in the tests
+  const mainnet = networks.bitcoin;
+  const testnet = networks.testnet;
 
-  // Initialize DataGenerator with the testnet network
-  const {
-    getNativeSegwitAddress,
-    generateRandomFeeRates,
-    generateRandomKeyPairs,
-  } = new DataGenerator(network);
+  // Initialize DataGenerators
+  const mainnetDataGenerator = new DataGenerator(mainnet);
+  const testnetDataGenerator = new DataGenerator(testnet);
 
   // Define mock UTXOs to be used in the tests
   const mockUTXOs: UTXO[] = [
     {
       txid: "0xDummyTxId", // Dummy transaction ID
       vout: 0, // Output index
-      scriptPubKey: generateRandomKeyPairs().publicKey, // Script public key
+      scriptPubKey: testnetDataGenerator.generateRandomKeyPairs().publicKey, // Script public key
       value: 5000, // Value in satoshis
     },
   ];
 
   // Define mock scripts to be used in the tests
-  const mockScripts = {
-    timelockScript: Buffer.from("timelockScript", "hex"),
-    unbondingScript: Buffer.from("unbondingScript", "hex"),
-    slashingScript: Buffer.from("slashingScript", "hex"),
-  };
+  const mockScripts = testnetDataGenerator.generateMockStakingScripts();
 
   it("should throw an error if the amount is less than or equal to 0", () => {
     // Test case: amount is 0
@@ -50,10 +44,12 @@ describe("stakingTransaction", () => {
       stakingTransaction(
         mockScripts,
         0, // Invalid amount
-        getNativeSegwitAddress(generateRandomKeyPairs().publicKey),
+        testnetDataGenerator.getNativeSegwitAddress(
+          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+        ),
         mockUTXOs,
-        network,
-        generateRandomFeeRates(), // Valid fee rate
+        testnet,
+        testnetDataGenerator.generateRandomFeeRates(), // Valid fee rate
       ),
     ).toThrow("Amount and fee rate must be bigger than 0");
 
@@ -62,10 +58,12 @@ describe("stakingTransaction", () => {
       stakingTransaction(
         mockScripts,
         -1, // Invalid amount
-        getNativeSegwitAddress(generateRandomKeyPairs().publicKey),
+        testnetDataGenerator.getNativeSegwitAddress(
+          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+        ),
         mockUTXOs,
-        network,
-        generateRandomFeeRates(), // Valid fee rate
+        testnet,
+        testnetDataGenerator.generateRandomFeeRates(), // Valid fee rate
       ),
     ).toThrow("Amount and fee rate must be bigger than 0");
   });
@@ -76,9 +74,11 @@ describe("stakingTransaction", () => {
       stakingTransaction(
         mockScripts,
         1000, // Valid amount
-        getNativeSegwitAddress(generateRandomKeyPairs().publicKey),
+        testnetDataGenerator.getNativeSegwitAddress(
+          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+        ),
         mockUTXOs,
-        network,
+        testnet,
         0, // Invalid fee rate
       ),
     ).toThrow("Amount and fee rate must be bigger than 0");
@@ -88,33 +88,68 @@ describe("stakingTransaction", () => {
       stakingTransaction(
         mockScripts,
         1000, // Valid amount
-        getNativeSegwitAddress(generateRandomKeyPairs().publicKey),
+        testnetDataGenerator.getNativeSegwitAddress(
+          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+        ),
         mockUTXOs,
-        network,
+        testnet,
         -1, // Invalid fee rate
       ),
     ).toThrow("Amount and fee rate must be bigger than 0");
   });
 
-  it("should throw an error if the change address is invalid", () => {
+  it("should throw an error if the address mainnet address on a testnet envrionment", () => {
     expect(() =>
-      stakingTransaction(mockScripts, 1000, "invalid", mockUTXOs, network, 1),
-    ).toThrow("Invalid change address"); // Updated to match the actual error message
+      stakingTransaction(
+        mockScripts,
+        1000,
+        mainnetDataGenerator.getNativeSegwitAddress(
+          mainnetDataGenerator.generateRandomKeyPairs().publicKey,
+        ),
+        mockUTXOs,
+        testnet,
+        1,
+        Buffer.from(
+          testnetDataGenerator.generateRandomKeyPairs(true).publicKey,
+          "hex",
+        ),
+      ),
+    ).toThrow("Invalid change address");
+  });
+
+  it("should throw an error if the address testnet address on a mainnet envrionment", () => {
+    expect(() =>
+      stakingTransaction(
+        mockScripts,
+        1000,
+        testnetDataGenerator.getNativeSegwitAddress(
+          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+        ),
+        mockUTXOs,
+        mainnet,
+        1,
+        Buffer.from(
+          mainnetDataGenerator.generateRandomKeyPairs(true).publicKey,
+          "hex",
+        ),
+      ),
+    ).toThrow("Invalid change address");
   });
 
   it("should throw an error if the public key is invalid", () => {
     // Define an invalid public key
     const invalidPublicKey = Buffer.from("invalidPublicKey", "hex");
-
     // Test case: invalid public key
     expect(() =>
       stakingTransaction(
         mockScripts,
         1000, // Valid amount
-        getNativeSegwitAddress(generateRandomKeyPairs().publicKey), // Valid change address
+        testnetDataGenerator.getNativeSegwitAddress(
+          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+        ),
         mockUTXOs,
-        network,
-        generateRandomFeeRates(), // Valid fee rate
+        testnet,
+        testnetDataGenerator.generateRandomFeeRates(), // Valid fee rate
         invalidPublicKey, // Invalid public key
       ),
     ).toThrow("Invalid public key");
