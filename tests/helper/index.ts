@@ -13,6 +13,14 @@ export class DataGenerator {
     this.netWork = network;
   }
 
+  generateRandomTxId = () => {
+    const randomBuffer = Buffer.alloc(32);
+    for (let i = 0; i < 32; i++) {
+      randomBuffer[i] = Math.floor(Math.random() * 256);
+    }
+    return randomBuffer.toString("hex");
+  };
+
   generateRandomKeyPairs = (isNoCoordPk = false) => {
     const keyPair = ECPair.makeRandom({ network: this.netWork });
     const { privateKey, publicKey } = keyPair;
@@ -109,7 +117,7 @@ export class DataGenerator {
       const subBuffer = buffer.length === 33 ? buffer.subarray(1, 33) : buffer; // Handle compressed keys
       return subBuffer;
     });
-    
+
     // Create staking script data
     let stakingScriptData;
     try {

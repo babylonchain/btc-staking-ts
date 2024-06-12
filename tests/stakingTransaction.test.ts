@@ -1,4 +1,4 @@
-import { stakingTransaction } from "../src/index";
+import { initBTCCurve, stakingTransaction } from "../src/index";
 import { networks } from "bitcoinjs-lib";
 import { UTXO } from "../src/types/UTXO";
 import { DataGenerator } from "./helper";
@@ -17,6 +17,9 @@ jest.mock("bitcoinjs-lib", () => ({
 }));
 
 describe("stakingTransaction", () => {
+  beforeAll(() => {
+    initBTCCurve();
+  });
   // Define the networks to be used in the tests
   const mainnet = networks.bitcoin;
   const testnet = networks.testnet;
@@ -28,7 +31,7 @@ describe("stakingTransaction", () => {
   // Define mock UTXOs to be used in the tests
   const mockUTXOs: UTXO[] = [
     {
-      txid: "0xDummyTxId", // Dummy transaction ID
+      txid: testnetDataGenerator.generateRandomTxId(),
       vout: 0, // Output index
       scriptPubKey: testnetDataGenerator.generateRandomKeyPairs().publicKey, // Script public key
       value: 5000, // Value in satoshis
@@ -99,13 +102,14 @@ describe("stakingTransaction", () => {
   });
 
   it("should throw an error if the address mainnet address on a testnet envrionment", () => {
+    const randomChangeAddress = mainnetDataGenerator.getNativeSegwitAddress(
+      mainnetDataGenerator.generateRandomKeyPairs().publicKey,
+    );
     expect(() =>
       stakingTransaction(
         mockScripts,
         1000,
-        mainnetDataGenerator.getNativeSegwitAddress(
-          mainnetDataGenerator.generateRandomKeyPairs().publicKey,
-        ),
+        randomChangeAddress,
         mockUTXOs,
         testnet,
         1,
@@ -114,17 +118,18 @@ describe("stakingTransaction", () => {
           "hex",
         ),
       ),
-    ).toThrow("Invalid change address");
+    ).toThrow(`${randomChangeAddress} has an invalid prefix`);
   });
 
   it("should throw an error if the address testnet address on a mainnet envrionment", () => {
+    const randomChangeAddress = testnetDataGenerator.getNativeSegwitAddress(
+      testnetDataGenerator.generateRandomKeyPairs().publicKey,
+    );
     expect(() =>
       stakingTransaction(
         mockScripts,
         1000,
-        testnetDataGenerator.getNativeSegwitAddress(
-          testnetDataGenerator.generateRandomKeyPairs().publicKey,
-        ),
+        randomChangeAddress,
         mockUTXOs,
         mainnet,
         1,
@@ -133,7 +138,7 @@ describe("stakingTransaction", () => {
           "hex",
         ),
       ),
-    ).toThrow("Invalid change address");
+    ).toThrow(`${randomChangeAddress} has an invalid prefix`);
   });
 
   it("should throw an error if the public key is invalid", () => {
