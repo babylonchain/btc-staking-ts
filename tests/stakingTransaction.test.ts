@@ -27,6 +27,8 @@ describe("stakingTransaction", () => {
   // Initialize DataGenerators
   const mainnetDataGenerator = new DataGenerator(mainnet);
   const testnetDataGenerator = new DataGenerator(testnet);
+  
+  const amount = 1000;
 
   // Define mock UTXOs to be used in the tests
   const mockUTXOs: UTXO[] = [
@@ -35,6 +37,12 @@ describe("stakingTransaction", () => {
       vout: 0, // Output index
       scriptPubKey: testnetDataGenerator.generateRandomKeyPairs().publicKey, // Script public key
       value: 5000, // Value in satoshis
+    },
+    {
+      txid: testnetDataGenerator.generateRandomTxId(),
+      vout: 1, // Output index
+      scriptPubKey: testnetDataGenerator.generateRandomKeyPairs().publicKey, // Script public key
+      value: 3000, // Value in satoshis
     },
   ];
 
@@ -76,7 +84,7 @@ describe("stakingTransaction", () => {
     expect(() =>
       stakingTransaction(
         mockScripts,
-        1000, // Valid amount
+        amount,
         testnetDataGenerator.getNativeSegwitAddress(
           testnetDataGenerator.generateRandomKeyPairs().publicKey,
         ),
@@ -90,7 +98,7 @@ describe("stakingTransaction", () => {
     expect(() =>
       stakingTransaction(
         mockScripts,
-        1000, // Valid amount
+        amount,
         testnetDataGenerator.getNativeSegwitAddress(
           testnetDataGenerator.generateRandomKeyPairs().publicKey,
         ),
@@ -108,7 +116,7 @@ describe("stakingTransaction", () => {
     expect(() =>
       stakingTransaction(
         mockScripts,
-        1000,
+        amount,
         randomChangeAddress,
         mockUTXOs,
         testnet,
@@ -128,7 +136,7 @@ describe("stakingTransaction", () => {
     expect(() =>
       stakingTransaction(
         mockScripts,
-        1000,
+        amount,
         randomChangeAddress,
         mockUTXOs,
         mainnet,
@@ -142,13 +150,12 @@ describe("stakingTransaction", () => {
   });
 
   it("should throw an error if the public key is invalid", () => {
-    // Define an invalid public key
     const invalidPublicKey = Buffer.from("invalidPublicKey", "hex");
     // Test case: invalid public key
     expect(() =>
       stakingTransaction(
         mockScripts,
-        1000, // Valid amount
+        amount,
         testnetDataGenerator.getNativeSegwitAddress(
           testnetDataGenerator.generateRandomKeyPairs().publicKey,
         ),
