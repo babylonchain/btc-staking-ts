@@ -29,14 +29,9 @@ export class DataGenerator {
       throw new Error("Failed to generate random key pair");
     }
     let pk = publicKey.toString("hex");
-    if (isNoCoordPk) {
-      // Check if the public key is in the "no coordinate" format
-      // If it is, remove the prefix
-      if (pk.startsWith("02") || pk.startsWith("03")) {
-        // Remove the prefix to get the "no coordinate" format (just the x-coordinate)
-        pk = pk.slice(2);
-      }
-    }
+
+    pk = isNoCoordPk ? pk.slice(2) : pk;
+
     return {
       privateKey: privateKey.toString("hex"),
       publicKey: pk,
