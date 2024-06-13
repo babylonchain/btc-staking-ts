@@ -16,7 +16,7 @@ jobs:
           command: npm install
       - run:
           name: Run tests
-          command: npm run test
+          command: npm run tests
 
   publish:
     machine:
@@ -34,7 +34,7 @@ jobs:
           command: npm install
       - run:
           name: Run tests
-          command: npm run test
+          command: npm run tests
       - run:
           name: Publish package
           command: npm publish
