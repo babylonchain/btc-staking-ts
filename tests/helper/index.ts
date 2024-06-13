@@ -22,7 +22,7 @@ export class DataGenerator {
     return randomBuffer.toString("hex");
   };
 
-  generateRandomKeyPairs = (isNoCoordPk = false) => {
+  generateRandomKeyPair = (isNoCoordPk = false) => {
     const keyPair = ECPair.makeRandom({ network: this.network });
     const { privateKey, publicKey } = keyPair;
     if (!privateKey || !publicKey) {
@@ -52,14 +52,14 @@ export class DataGenerator {
     return Math.floor(Math.random() * 1000) + 1;
   };
 
-  // Convenant quorums are a list of public keys that are used to sign a covenant
+  // Convenant committee are a list of public keys that are used to sign a covenant
   generateRandomCovenantCommittee = (size: number): Buffer[] => {
-    const quorum: Buffer[] = [];
+    const committe: Buffer[] = [];
     for (let i = 0; i < size; i++) {
-      const keyPair = this.generateRandomKeyPairs(true);
-      quorum.push(Buffer.from(keyPair.publicKey, "hex"));
+      const keyPair = this.generateRandomKeyPair(true);
+      committe.push(Buffer.from(keyPair.publicKey, "hex"));
     }
-    return quorum;
+    return committe;
   };
 
   generateRandomTag = () => {
@@ -116,9 +116,9 @@ export class DataGenerator {
   };
 
   generateMockStakingScripts = (): StakingScripts => {
-    const finalityProviderPk = this.generateRandomKeyPairs(true).publicKey;
+    const finalityProviderPk = this.generateRandomKeyPair(true).publicKey;
     const stakingTxTimelock = this.generateRandomStakingTerm();
-    const publicKeyNoCoord = this.generateRandomKeyPairs(true).publicKey;
+    const publicKeyNoCoord = this.generateRandomKeyPair(true).publicKey;
     const committeeSize = Math.floor(Math.random() * 10) + 1;
     const globalParams = this.generateRandomGlobalParams(
       stakingTxTimelock,
@@ -164,7 +164,7 @@ export class DataGenerator {
     return Array.from({ length: numUTXOs }, () => ({
       txid: dataGenerator.generateRandomTxId(),
       vout: Math.floor(Math.random() * 10),
-      scriptPubKey: this.generateRandomKeyPairs().publicKey,
+      scriptPubKey: this.generateRandomKeyPair().publicKey,
       value: Math.floor(Math.random() * 9000) + 1000,
     }));
   };

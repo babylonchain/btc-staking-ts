@@ -31,7 +31,7 @@ describe("stakingTransaction", () => {
         mockScripts,
         0, // Invalid amount
         testnetDataGenerator.getNativeSegwitAddress(
-          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+          testnetDataGenerator.generateRandomKeyPair().publicKey,
         ),
         mockUTXOs,
         testnet,
@@ -45,7 +45,7 @@ describe("stakingTransaction", () => {
         mockScripts,
         -1, // Invalid amount
         testnetDataGenerator.getNativeSegwitAddress(
-          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+          testnetDataGenerator.generateRandomKeyPair().publicKey,
         ),
         mockUTXOs,
         testnet,
@@ -61,7 +61,7 @@ describe("stakingTransaction", () => {
         mockScripts,
         amount,
         testnetDataGenerator.getNativeSegwitAddress(
-          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+          testnetDataGenerator.generateRandomKeyPair().publicKey,
         ),
         mockUTXOs,
         testnet,
@@ -75,7 +75,7 @@ describe("stakingTransaction", () => {
         mockScripts,
         amount,
         testnetDataGenerator.getNativeSegwitAddress(
-          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+          testnetDataGenerator.generateRandomKeyPair().publicKey,
         ),
         mockUTXOs,
         testnet,
@@ -86,7 +86,7 @@ describe("stakingTransaction", () => {
 
   it("should throw an error if the address mainnet address on a testnet envrionment", () => {
     const randomChangeAddress = mainnetDataGenerator.getNativeSegwitAddress(
-      mainnetDataGenerator.generateRandomKeyPairs().publicKey,
+      mainnetDataGenerator.generateRandomKeyPair().publicKey,
     );
     expect(() =>
       stakingTransaction(
@@ -97,7 +97,7 @@ describe("stakingTransaction", () => {
         testnet,
         1,
         Buffer.from(
-          testnetDataGenerator.generateRandomKeyPairs(true).publicKey,
+          testnetDataGenerator.generateRandomKeyPair(true).publicKey,
           "hex",
         ),
       ),
@@ -106,7 +106,7 @@ describe("stakingTransaction", () => {
 
   it("should throw an error if the address testnet address on a mainnet envrionment", () => {
     const randomChangeAddress = testnetDataGenerator.getNativeSegwitAddress(
-      testnetDataGenerator.generateRandomKeyPairs().publicKey,
+      testnetDataGenerator.generateRandomKeyPair().publicKey,
     );
     expect(() =>
       stakingTransaction(
@@ -117,7 +117,7 @@ describe("stakingTransaction", () => {
         mainnet,
         1,
         Buffer.from(
-          mainnetDataGenerator.generateRandomKeyPairs(true).publicKey,
+          mainnetDataGenerator.generateRandomKeyPair(true).publicKey,
           "hex",
         ),
       ),
@@ -132,7 +132,7 @@ describe("stakingTransaction", () => {
         mockScripts,
         amount,
         testnetDataGenerator.getNativeSegwitAddress(
-          testnetDataGenerator.generateRandomKeyPairs().publicKey,
+          testnetDataGenerator.generateRandomKeyPair().publicKey,
         ),
         mockUTXOs,
         testnet,
