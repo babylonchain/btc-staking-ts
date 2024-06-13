@@ -45,7 +45,7 @@ export class DataGenerator {
 
   // Generate a random staking term (number of blocks to stake)
   // ranged from 1 to 65535
-  generateRandomStakingTerms = () => {
+  generateRandomStakingTerm = () => {
     return Math.floor(Math.random() * 65535) + 1;
   };
 
@@ -54,7 +54,7 @@ export class DataGenerator {
   };
 
   // Convenant quorums are a list of public keys that are used to sign a covenant
-  generateRandomCovenantQuorums = (size: number): Buffer[] => {
+  generateRandomCovenantCommittee = (size: number): Buffer[] => {
     const quorum: Buffer[] = [];
     for (let i = 0; i < size; i++) {
       const keyPair = this.generateRandomKeyPairs(true);
@@ -64,19 +64,22 @@ export class DataGenerator {
   };
 
   generateRandomTag = () => {
-    const randomTagNum = Math.floor(Math.random() * 100000000) + 1;
-    return Buffer.from(randomTagNum.toString(), "utf8");
+    const buffer = Buffer.alloc(4);
+    for (let i = 0; i < 4; i++) {
+      buffer[i] = Math.floor(Math.random() * 256);
+    }
+    return buffer;
   };
 
   generateRandomGlobalParams = () => {
-    const covenantPks = this.generateRandomCovenantQuorums(3).map((buffer) =>
+    const covenantPks = this.generateRandomCovenantCommittee(3).map((buffer) =>
       buffer.toString("hex"),
     );
 
     return {
       covenantPks,
       covenantQuorum: Math.floor(Math.random() * 3) + 1,
-      unbondingTime: this.generateRandomStakingTerms(),
+      unbondingTime: this.generateRandomStakingTerm(),
       tag: this.generateRandomTag().toString("hex"),
     };
   };
@@ -113,7 +116,7 @@ export class DataGenerator {
 
   generateMockStakingScripts = (): StakingScripts => {
     const finalityProviderPk = this.generateRandomKeyPairs(true).publicKey;
-    const stakingTxTimelock = this.generateRandomStakingTerms();
+    const stakingTxTimelock = this.generateRandomStakingTerm();
     const publicKeyNoCoord = this.generateRandomKeyPairs(true).publicKey;
     const globalParams = this.generateRandomGlobalParams();
 
