@@ -1,20 +1,6 @@
 import { initBTCCurve, stakingTransaction } from "../src/index";
 import { networks } from "bitcoinjs-lib";
-import { UTXO } from "../src/types/UTXO";
 import { DataGenerator } from "./helper";
-
-// Mock the bitcoinjs-lib module
-jest.mock("bitcoinjs-lib", () => ({
-  ...jest.requireActual("bitcoinjs-lib"),
-  address: {
-    toOutputScript: jest.fn((address, network) => {
-      if (address === "invalid") {
-        throw new Error("Invalid change address");
-      }
-      return Buffer.from("mockedOutputScript", "hex");
-    }),
-  },
-}));
 
 describe("stakingTransaction", () => {
   beforeAll(() => {
