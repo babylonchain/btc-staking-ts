@@ -44,6 +44,10 @@ export class DataGenerator {
     return Math.floor(Math.random() * 65535) + 1;
   };
 
+  generateRandomUnbondingTime = (stakingTerm: number) => {
+    return Math.floor(Math.random() * stakingTerm) + 1;
+  };
+
   generateRandomFeeRates = () => {
     return Math.floor(Math.random() * 1000) + 1;
   };
@@ -66,16 +70,18 @@ export class DataGenerator {
     return buffer;
   };
 
-  generateRandomGlobalParams = () => {
-    const covenantPks = this.generateRandomCovenantCommittee(3).map((buffer) =>
-      buffer.toString("hex"),
+  generateRandomGlobalParams = (stakingTerm: number, committeeSize: number) => {
+    const covenantPks = this.generateRandomCovenantCommittee(committeeSize).map(
+      (buffer) => buffer.toString("hex"),
     );
-
+    const covenantQuorum = Math.floor(Math.random() * (committeeSize - 1)) + 1;
+    const unbondingTime = this.generateRandomUnbondingTime(stakingTerm);
+    const tag = this.generateRandomTag().toString("hex");
     return {
       covenantPks,
-      covenantQuorum: Math.floor(Math.random() * 3) + 1,
-      unbondingTime: this.generateRandomStakingTerm(),
-      tag: this.generateRandomTag().toString("hex"),
+      covenantQuorum,
+      unbondingTime,
+      tag,
     };
   };
 
@@ -113,10 +119,14 @@ export class DataGenerator {
     const finalityProviderPk = this.generateRandomKeyPairs(true).publicKey;
     const stakingTxTimelock = this.generateRandomStakingTerm();
     const publicKeyNoCoord = this.generateRandomKeyPairs(true).publicKey;
-    const globalParams = this.generateRandomGlobalParams();
+    const committeeSize = Math.floor(Math.random() * 10) + 1;
+    const globalParams = this.generateRandomGlobalParams(
+      stakingTxTimelock,
+      committeeSize,
+    );
 
     // Convert covenant PKs to buffers
-    const covenantPKsBuffer = globalParams.covenantPks.map((pk) =>
+    const covenantPKsBuffer = globalParams.covenantPks.map((pk: string) =>
       Buffer.from(pk, "hex"),
     );
 
