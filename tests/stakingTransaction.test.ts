@@ -27,24 +27,13 @@ describe("stakingTransaction", () => {
   // Initialize DataGenerators
   const mainnetDataGenerator = new DataGenerator(mainnet);
   const testnetDataGenerator = new DataGenerator(testnet);
-  
-  const amount = 1000;
 
-  // Define mock UTXOs to be used in the tests
-  const mockUTXOs: UTXO[] = [
-    {
-      txid: testnetDataGenerator.generateRandomTxId(),
-      vout: 0, // Output index
-      scriptPubKey: testnetDataGenerator.generateRandomKeyPairs().publicKey, // Script public key
-      value: 5000, // Value in satoshis
-    },
-    {
-      txid: testnetDataGenerator.generateRandomTxId(),
-      vout: 1, // Output index
-      scriptPubKey: testnetDataGenerator.generateRandomKeyPairs().publicKey, // Script public key
-      value: 3000, // Value in satoshis
-    },
-  ];
+  const mockUTXOs = testnetDataGenerator.generateRandomUTXOs(
+    testnetDataGenerator,
+    Math.floor(Math.random() * 5) + 1,
+  );
+  const totalUTXOValue = mockUTXOs.reduce((sum, utxo) => sum + utxo.value, 0);
+  const amount = Math.floor(Math.random() * (totalUTXOValue - 1000 + 1)) + 1000;
 
   // Define mock scripts to be used in the tests
   const mockScripts = testnetDataGenerator.generateMockStakingScripts();

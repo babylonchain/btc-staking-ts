@@ -4,6 +4,20 @@ orbs:
   node: circleci/node@5.2.0
 
 jobs:
+  build_and_test:
+    machine:
+      image: ubuntu-2204:2024.01.1
+    steps:
+      - checkout
+      - node/install:
+          node-version: '21.7'
+      - run:
+          name: Install requirements
+          command: npm install
+      - run:
+          name: Run tests
+          command: npm run test
+
   publish:
     machine:
       image: ubuntu-2204:2024.01.1
@@ -28,6 +42,7 @@ jobs:
 workflows:
   CI:
     jobs:
+      - build_and_test
       - require_approval:
           type: approval
           filters:
@@ -36,6 +51,7 @@ workflows:
                 - main
       - publish:
           requires:
+            - build_and_test
             - require_approval
           filters:
             tags:

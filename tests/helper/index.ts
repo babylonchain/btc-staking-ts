@@ -3,14 +3,15 @@ import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from 'bitcoinjs-lib';
 import { StakingScripts } from "../../src/types/StakingScripts";
 import { StakingScriptData } from "../../src";
+import { UTXO } from "../../src/types/UTXO";
 
 const ECPair = ECPairFactory(ecc);
 
 export class DataGenerator {
-  private netWork: bitcoin.networks.Network;
+  private network: bitcoin.networks.Network;
 
   constructor(network: bitcoin.networks.Network) {
-    this.netWork = network;
+    this.network = network;
   }
 
   generateRandomTxId = () => {
@@ -22,9 +23,9 @@ export class DataGenerator {
   };
 
   generateRandomKeyPairs = (isNoCoordPk = false) => {
-    const keyPair = ECPair.makeRandom({ network: this.netWork });
+    const keyPair = ECPair.makeRandom({ network: this.network });
     const { privateKey, publicKey } = keyPair;
-    if (!privateKey) {
+    if (!privateKey || !publicKey) {
       throw new Error("Failed to generate random key pair");
     }
     let pk = publicKey.toString("hex");
@@ -43,9 +44,9 @@ export class DataGenerator {
   };
 
   // Generate a random staking term (number of blocks to stake)
-  // ranged from 1 to 100000
+  // ranged from 1 to 65535
   generateRandomStakingTerms = () => {
-    return Math.floor(Math.random() * 100000) + 1;
+    return Math.floor(Math.random() * 65535) + 1;
   };
 
   generateRandomFeeRates = () => {
@@ -67,11 +68,24 @@ export class DataGenerator {
     return Buffer.from(randomTagNum.toString(), "utf8");
   };
 
+  generateRandomGlobalParams = () => {
+    const covenantPks = this.generateRandomCovenantQuorums(3).map((buffer) =>
+      buffer.toString("hex"),
+    );
+
+    return {
+      covenantPks,
+      covenantQuorum: Math.floor(Math.random() * 3) + 1,
+      unbondingTime: this.generateRandomStakingTerms(),
+      tag: this.generateRandomTag().toString("hex"),
+    };
+  };
+
   getTaprootAddress = (publicKey: string) => {
     const internalPubkey = Buffer.from(publicKey, "hex");
     const { address } = bitcoin.payments.p2tr({
       internalPubkey,
-      network: this.netWork,
+      network: this.network,
     });
     if (!address) {
       throw new Error("Failed to generate taproot address from public key");
@@ -83,7 +97,7 @@ export class DataGenerator {
     const internalPubkey = Buffer.from(publicKey, "hex");
     const { address } = bitcoin.payments.p2wpkh({
       pubkey: internalPubkey,
-      network: this.netWork,
+      network: this.network,
     });
     if (!address) {
       throw new Error(
@@ -94,29 +108,19 @@ export class DataGenerator {
   };
 
   getNetwork = () => {
-    return this.netWork;
+    return this.network;
   };
 
   generateMockStakingScripts = (): StakingScripts => {
     const finalityProviderPk = this.generateRandomKeyPairs(true).publicKey;
-    const stakingTxTimelock = 65535; // cannot exceed 65535
+    const stakingTxTimelock = this.generateRandomStakingTerms();
     const publicKeyNoCoord = this.generateRandomKeyPairs(true).publicKey;
-
-    const globalParams = {
-      covenantPks: this.generateRandomCovenantQuorums(3).map((buffer) =>
-        buffer.toString("hex"),
-      ),
-      covenantQuorum: Math.floor(Math.random() * 3) + 1,
-      unbondingTime: this.generateRandomStakingTerms(),
-      tag: this.generateRandomTag().toString("hex"),
-    };
+    const globalParams = this.generateRandomGlobalParams();
 
     // Convert covenant PKs to buffers
-    const covenantPKsBuffer = globalParams.covenantPks.map((pk) => {
-      const buffer = Buffer.from(pk, "hex");
-      const subBuffer = buffer.length === 33 ? buffer.subarray(1, 33) : buffer; // Handle compressed keys
-      return subBuffer;
-    });
+    const covenantPKsBuffer = globalParams.covenantPks.map((pk) =>
+      Buffer.from(pk, "hex"),
+    );
 
     // Create staking script data
     let stakingScriptData;
@@ -143,5 +147,17 @@ export class DataGenerator {
     }
 
     return scripts;
+  };
+
+  generateRandomUTXOs = (
+    dataGenerator: DataGenerator,
+    numUTXOs: number,
+  ): UTXO[] => {
+    return Array.from({ length: numUTXOs }, () => ({
+      txid: dataGenerator.generateRandomTxId(),
+      vout: Math.floor(Math.random() * 10),
+      scriptPubKey: this.generateRandomKeyPairs().publicKey,
+      value: Math.floor(Math.random() * 9000) + 1000,
+    }));
   };
 }
