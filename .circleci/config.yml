@@ -4,6 +4,20 @@ orbs:
   node: circleci/node@5.2.0
 
 jobs:
+  build_and_test:
+    machine:
+      image: ubuntu-2204:2024.01.1
+    steps:
+      - checkout
+      - node/install:
+          node-version: '21.7'
+      - run:
+          name: Install requirements
+          command: npm install
+      - run:
+          name: Run tests
+          command: npm run tests
+
   publish:
     machine:
       image: ubuntu-2204:2024.01.1
@@ -16,14 +30,16 @@ jobs:
           name: Authenticate with NPM registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
       - run:
-          name: Install requirements and publish package
-          command: |
-            npm install
-            npm publish
+          name: Install requirements
+          command: npm install
+      - run:
+          name: Publish package
+          command: npm publish
 
 workflows:
   CI:
     jobs:
+      - build_and_test
       - require_approval:
           type: approval
           filters:
@@ -32,6 +48,7 @@ workflows:
                 - main
       - publish:
           requires:
+            - build_and_test
             - require_approval
           filters:
             tags:
