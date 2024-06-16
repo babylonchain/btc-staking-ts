@@ -588,13 +588,13 @@ function slashingTransaction(
     index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: transaction.outs[0].value,
-      script: transaction.outs[0].script,
+      value: transaction.outs[outputIndex].value,
+      script: transaction.outs[outputIndex].script,
     },
     tapLeafScript: [tapLeafScript],
   });
 
-  const userValue = transaction.outs[0].value * (1 - slashingRate) - minimumFee;
+  const userValue = transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee;
 
   // We need to verify that this is above 0
   if (userValue <= 0) {
@@ -605,7 +605,7 @@ function slashingTransaction(
   // Add the slashing output
   psbt.addOutput({
     address: slashingAddress,
-    value: transaction.outs[0].value * slashingRate,
+    value: transaction.outs[outputIndex].value * slashingRate,
   });
 
   // Change output contains unbonding timelock script
@@ -618,7 +618,7 @@ function slashingTransaction(
   // Add the change output
   psbt.addOutput({
     address: changeOutput.address!,
-    value: transaction.outs[0].value * (1 - slashingRate) - minimumFee,
+    value: transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee,
   });
 
   return { psbt };
@@ -680,8 +680,8 @@ export function unbondingTransaction(
     index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: stakingTx.outs[0].value,
-      script: stakingTx.outs[0].script,
+      value: stakingTx.outs[outputIndex].value,
+      script: stakingTx.outs[outputIndex].script,
     },
     tapLeafScript: [inputTapLeafScript],
   });
@@ -703,7 +703,7 @@ export function unbondingTransaction(
   // Add the unbonding output
   psbt.addOutput({
     address: unbondingOutput.address!,
-    value: stakingTx.outs[0].value - transactionFee,
+    value: stakingTx.outs[outputIndex].value - transactionFee,
   });
 
   return {
