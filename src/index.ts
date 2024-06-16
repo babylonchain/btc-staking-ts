@@ -199,7 +199,6 @@ export function withdrawEarlyUnbondedTransaction(
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
-  outputIndex: number = 0,
 ): PsbtTransactionResult {
   const scriptTree: Taptree = [
     {
@@ -217,7 +216,6 @@ export function withdrawEarlyUnbondedTransaction(
     withdrawalAddress,
     network,
     feeRate,
-    outputIndex,
   );
 }
 
@@ -258,7 +256,6 @@ export function withdrawTimelockUnbondedTransaction(
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
-  outputIndex: number = 0,
 ): PsbtTransactionResult {
   const scriptTree: Taptree = [
     {
@@ -274,7 +271,6 @@ export function withdrawTimelockUnbondedTransaction(
     withdrawalAddress,
     network,
     feeRate,
-    outputIndex,
   );
 }
 
@@ -289,16 +285,10 @@ function withdrawalTransaction(
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
-  outputIndex: number = 0,
 ): PsbtTransactionResult {
   // Check that withdrawal feeRate is bigger than 0
   if (feeRate <= 0) {
     throw new Error("Withdrawal feeRate must be bigger than 0");
-  }
-
-  // Check that outputIndex is bigger or equal to 0
-  if (outputIndex < 0) {
-    throw new Error("Output index must be bigger or equal to 0");
   }
 
   // position of time in the timelock script
@@ -347,17 +337,17 @@ function withdrawalTransaction(
 
   psbt.addInput({
     hash: tx.getHash(),
-    index: outputIndex,
+    index: 0,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: tx.outs[outputIndex].value,
-      script: tx.outs[outputIndex].script,
+      value: tx.outs[0].value,
+      script: tx.outs[0].script,
     },
     tapLeafScript: [tapLeafScript],
     sequence: timelock,
   });
 
-  const outputValue = tx.outs[outputIndex].value;
+  const outputValue = tx.outs[0].value;
   if (outputValue < BTC_DUST_SAT) {
     throw new Error("Output value is less than dust limit");
   }
@@ -365,7 +355,7 @@ function withdrawalTransaction(
   const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, 1);
   psbt.addOutput({
     address: withdrawalAddress,
-    value: tx.outs[outputIndex].value - estimatedFee,
+    value: tx.outs[0].value - estimatedFee,
   });
 
   return {
@@ -588,13 +578,13 @@ function slashingTransaction(
     index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: transaction.outs[0].value,
-      script: transaction.outs[0].script,
+      value: transaction.outs[outputIndex].value,
+      script: transaction.outs[outputIndex].script,
     },
     tapLeafScript: [tapLeafScript],
   });
 
-  const userValue = transaction.outs[0].value * (1 - slashingRate) - minimumFee;
+  const userValue = transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee;
 
   // We need to verify that this is above 0
   if (userValue <= 0) {
@@ -605,7 +595,7 @@ function slashingTransaction(
   // Add the slashing output
   psbt.addOutput({
     address: slashingAddress,
-    value: transaction.outs[0].value * slashingRate,
+    value: transaction.outs[outputIndex].value * slashingRate,
   });
 
   // Change output contains unbonding timelock script
@@ -618,7 +608,7 @@ function slashingTransaction(
   // Add the change output
   psbt.addOutput({
     address: changeOutput.address!,
-    value: transaction.outs[0].value * (1 - slashingRate) - minimumFee,
+    value: transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee,
   });
 
   return { psbt };
@@ -680,8 +670,8 @@ export function unbondingTransaction(
     index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: stakingTx.outs[0].value,
-      script: stakingTx.outs[0].script,
+      value: stakingTx.outs[outputIndex].value,
+      script: stakingTx.outs[outputIndex].script,
     },
     tapLeafScript: [inputTapLeafScript],
   });
@@ -703,7 +693,7 @@ export function unbondingTransaction(
   // Add the unbonding output
   psbt.addOutput({
     address: unbondingOutput.address!,
-    value: stakingTx.outs[0].value - transactionFee,
+    value: stakingTx.outs[outputIndex].value - transactionFee,
   });
 
   return {
