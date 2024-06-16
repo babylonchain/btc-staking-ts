@@ -207,6 +207,9 @@ export function withdrawEarlyUnbondedTransaction(
     { output: scripts.unbondingTimelockScript },
   ];
 
+  // Unbonding transaction always has 0 index
+  const outputIndex = 0
+
   return withdrawalTransaction(
     {
       timelockScript: scripts.unbondingTimelockScript,
@@ -216,6 +219,7 @@ export function withdrawEarlyUnbondedTransaction(
     withdrawalAddress,
     network,
     feeRate,
+    outputIndex,
   );
 }
 
@@ -256,6 +260,7 @@ export function withdrawTimelockUnbondedTransaction(
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
+  outputIndex: number = 0,
 ): PsbtTransactionResult {
   const scriptTree: Taptree = [
     {
@@ -271,6 +276,7 @@ export function withdrawTimelockUnbondedTransaction(
     withdrawalAddress,
     network,
     feeRate,
+    outputIndex,
   );
 }
 
@@ -285,10 +291,16 @@ function withdrawalTransaction(
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
+  outputIndex: number = 0,
 ): PsbtTransactionResult {
   // Check that withdrawal feeRate is bigger than 0
   if (feeRate <= 0) {
     throw new Error("Withdrawal feeRate must be bigger than 0");
+  }
+
+  // Check that outputIndex is bigger or equal to 0
+  if (outputIndex < 0) {
+    throw new Error("Output index must be bigger or equal to 0");
   }
 
   // position of time in the timelock script
@@ -337,17 +349,17 @@ function withdrawalTransaction(
 
   psbt.addInput({
     hash: tx.getHash(),
-    index: 0,
+    index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: tx.outs[0].value,
-      script: tx.outs[0].script,
+      value: tx.outs[outputIndex].value,
+      script: tx.outs[outputIndex].script,
     },
     tapLeafScript: [tapLeafScript],
     sequence: timelock,
   });
 
-  const outputValue = tx.outs[0].value;
+  const outputValue = tx.outs[outputIndex].value;
   if (outputValue < BTC_DUST_SAT) {
     throw new Error("Output value is less than dust limit");
   }
@@ -355,7 +367,7 @@ function withdrawalTransaction(
   const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, 1);
   psbt.addOutput({
     address: withdrawalAddress,
-    value: tx.outs[0].value - estimatedFee,
+    value: tx.outs[outputIndex].value - estimatedFee,
   });
 
   return {
