@@ -199,6 +199,7 @@ export function withdrawEarlyUnbondedTransaction(
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
+  _outputIndex: number = 0,
 ): PsbtTransactionResult {
   const scriptTree: Taptree = [
     {
@@ -206,9 +207,6 @@ export function withdrawEarlyUnbondedTransaction(
     },
     { output: scripts.unbondingTimelockScript },
   ];
-
-  // Unbonding transaction always has 0 index
-  const outputIndex = 0
 
   return withdrawalTransaction(
     {
@@ -219,7 +217,8 @@ export function withdrawEarlyUnbondedTransaction(
     withdrawalAddress,
     network,
     feeRate,
-    outputIndex,
+    // outputIndex is always 0 for early unbonding
+    0
   );
 }
 
