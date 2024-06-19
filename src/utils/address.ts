@@ -9,8 +9,7 @@ import { networks, address as addressChecker } from "bitcoinjs-lib";
  */
 export const isValidBitcoinAddress = (address: string, network: networks.Network): boolean => {
     try {
-        addressChecker.toOutputScript(address, network);
-      return true;
+      return !!addressChecker.toOutputScript(address, network);
     } catch (error) {
       return false;
     }

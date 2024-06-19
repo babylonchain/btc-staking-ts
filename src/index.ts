@@ -81,7 +81,7 @@ export function stakingTransaction(
   if (!isValidBitcoinAddress(changeAddress, network)) {
     throw new Error("Invalid change address");
   }
-  
+
   // Check whether the public key is valid
   if (publicKeyNoCoord && publicKeyNoCoord.length !== PK_LENGTH) {
     throw new Error("Invalid public key");
