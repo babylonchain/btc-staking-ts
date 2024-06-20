@@ -199,7 +199,6 @@ export function withdrawEarlyUnbondedTransaction(
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
-  _outputIndex: number = 0,
 ): PsbtTransactionResult {
   const scriptTree: Taptree = [
     {
