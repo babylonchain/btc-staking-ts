@@ -86,6 +86,10 @@ export class DataGenerator {
   };
 
   getTaprootAddress = (publicKey: string) => {
+    // Remove the prefix if it exists
+    if (publicKey.length == 66) {
+      publicKey = publicKey.slice(2);
+    }
     const internalPubkey = Buffer.from(publicKey, "hex");
     const { address } = bitcoin.payments.p2tr({
       internalPubkey,
@@ -158,14 +162,23 @@ export class DataGenerator {
   };
 
   generateRandomUTXOs = (
-    dataGenerator: DataGenerator,
-    numUTXOs: number,
+    minAvailableBalance: number,
+    numberOfUTXOs: number,
   ): UTXO[] => {
-    return Array.from({ length: numUTXOs }, () => ({
-      txid: dataGenerator.generateRandomTxId(),
-      vout: Math.floor(Math.random() * 10),
-      scriptPubKey: this.generateRandomKeyPair().publicKey,
-      value: Math.floor(Math.random() * 9000) + 1000,
-    }));
+    const utxos = [];
+    let sum = 0;
+    for (let i = 0; i < numberOfUTXOs; i++) {
+      utxos.push({
+        txid: this.generateRandomTxId(),
+        vout: Math.floor(Math.random() * 10),
+        scriptPubKey: this.generateRandomKeyPair().publicKey,
+        value: Math.floor(Math.random() * 9000) + minAvailableBalance,
+      });
+      sum += utxos[i].value;
+      if (sum >= minAvailableBalance) {
+        break;
+      }
+    }
+    return utxos;
   };
 }

@@ -14,12 +14,13 @@ import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
 import { PsbtTransactionResult } from "./types/transaction";
 import { UTXO } from "./types/UTXO";
 import { getEstimatedFee, inputValueSum, getStakingTxInputUTXOsAndFees } from "./utils/fee";
+import { isValidBitcoinAddress } from "./utils/address";
+import { BTC_DUST_SAT } from "./constants/dustSat";
 
 export { initBTCCurve, StakingScriptData };
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
-const BTC_DUST_SAT = 546;
 
 /**
  * Constructs an unsigned BTC Staking transaction in psbt format.
@@ -77,7 +78,7 @@ export function stakingTransaction(
   }
 
   // Check whether the change address is a valid Bitcoin address.
-  if (!address.toOutputScript(changeAddress, network)) {
+  if (!isValidBitcoinAddress(changeAddress, network)) {
     throw new Error("Invalid change address");
   }
 
