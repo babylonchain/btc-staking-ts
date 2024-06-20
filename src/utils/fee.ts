@@ -83,7 +83,7 @@ export const getStakingTxInputUTXOsAndFees = (
     // Sort available UTXOs from highest to lowest value
     availableUTXOs.sort((a, b) => b.value - a.value);
 
-    let selectedUTXOs: UTXO[] = [];
+    const selectedUTXOs: UTXO[] = [];
     let accumulatedValue = 0;
     let estimatedFee;
 

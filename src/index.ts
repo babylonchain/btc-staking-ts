@@ -14,12 +14,13 @@ import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
 import { PsbtTransactionResult } from "./types/transaction";
 import { UTXO } from "./types/UTXO";
 import { getEstimatedFee, inputValueSum, getStakingTxInputUTXOsAndFees } from "./utils/fee";
+import { isValidBitcoinAddress } from "./utils/address";
+import { BTC_DUST_SAT } from "./constants/dustSat";
 
 export { initBTCCurve, StakingScriptData };
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
-const BTC_DUST_SAT = 546;
 
 /**
  * Constructs an unsigned BTC Staking transaction in psbt format.
@@ -77,7 +78,7 @@ export function stakingTransaction(
   }
 
   // Check whether the change address is a valid Bitcoin address.
-  if (!address.toOutputScript(changeAddress, network)) {
+  if (!isValidBitcoinAddress(changeAddress, network)) {
     throw new Error("Invalid change address");
   }
 
@@ -362,9 +363,13 @@ function withdrawalTransaction(
   }
   // withdraw tx always has 1 output only
   const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, 1);
+  const value = tx.outs[outputIndex].value - estimatedFee;
+  if (!value) {
+    throw new Error("Not enough funds to cover the fee for withdrawal transaction");
+  }
   psbt.addOutput({
     address: withdrawalAddress,
-    value: tx.outs[outputIndex].value - estimatedFee,
+    value,
   });
 
   return {
@@ -698,7 +703,10 @@ export function unbondingTransaction(
     scriptTree: outputScriptTree,
     network,
   });
-
+  const value = stakingTx.outs[outputIndex].value - transactionFee;
+  if (!value) {
+    throw new Error("Not enough funds to cover the fee for unbonding transaction");
+  }
   // Add the unbonding output
   psbt.addOutput({
     address: unbondingOutput.address!,
