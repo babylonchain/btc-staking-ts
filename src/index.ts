@@ -363,9 +363,13 @@ function withdrawalTransaction(
   }
   // withdraw tx always has 1 output only
   const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, 1);
+  const value = tx.outs[outputIndex].value - estimatedFee;
+  if (!value) {
+    throw new Error("Not enough funds to cover the fee for withdrawal transaction");
+  }
   psbt.addOutput({
     address: withdrawalAddress,
-    value: tx.outs[outputIndex].value - estimatedFee,
+    value,
   });
 
   return {
@@ -699,7 +703,10 @@ export function unbondingTransaction(
     scriptTree: outputScriptTree,
     network,
   });
-
+  const value = stakingTx.outs[outputIndex].value - transactionFee;
+  if (!value) {
+    throw new Error("Not enough funds to cover the fee for unbonding transaction");
+  }
   // Add the unbonding output
   psbt.addOutput({
     address: unbondingOutput.address!,
