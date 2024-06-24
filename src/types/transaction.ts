@@ -4,6 +4,6 @@ import { Psbt } from "bitcoinjs-lib";
 //  - psbt: The partially signed transaction
 //  - fee: The total fee of the transaction
 export interface PsbtTransactionResult {
-    psbt: Psbt;
-    fee: number;
+  psbt: Psbt;
+  fee: number;
 }
