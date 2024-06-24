@@ -26,7 +26,7 @@ jobs:
           name: Check commit message for canary build
           command: |
             commit_message=$(git log -1 --pretty=%B)
-            if [[ "$commit_message" == *"-canary."* ]]; then
+            if [[ "$commit_message" == *"-canarytest."* ]]; then
               echo "Skipping canary publish for commit: $commit_message"
               exit 0
             fi
@@ -36,16 +36,15 @@ jobs:
           name: Install requirements
           command: npm install
       - run:
-          name: Bump and push canary version and tag
-          command: |
-            npm version prerelease --preid=canary
+          name: Bump canary version
+          command: npm version prerelease --preid=canarytest
       - run:
           name: Authenticate with NPM registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
       - run:
           name: Publish canary package
           command: |
-            npm publish --tag canary
+            npm publish --tag canarytest
             if [ $? -ne 0 ]; then
               echo "npm publish failed, stopping the job."
               exit 1
