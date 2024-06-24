@@ -22,36 +22,22 @@ jobs:
       image: ubuntu-2204:2024.01.1
     steps:
       - checkout
-      - run:
-          name: Check commit message for canary build
-          command: |
-            commit_message=$(git log -1 --pretty=%B)
-            if [[ "$commit_message" == *"-canarytest."* ]]; then
-              echo "Skipping canary publish for commit: $commit_message"
-              exit 0
-            fi
       - node/install:
           node-version: '21.7'
       - run:
           name: Install requirements
           command: npm install
       - run:
-          name: Bump canary version
-          command: npm version prerelease --preid=canarytest
-      - run:
           name: Authenticate with NPM registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
       - run:
           name: Publish canary package
           command: |
-            npm publish --tag canarytest
+            npm publish --tag canary
             if [ $? -ne 0 ]; then
               echo "npm publish failed, stopping the job."
               exit 1
             fi
-      - run:
-          name: Push canary version and tag
-          command: git push origin HEAD --tags
   validate_main_version:
     machine:
       image: ubuntu-2204:2024.01.1

@@ -1,6 +1,6 @@
 {
   "name": "btc-staking-ts",
-  "version": "0.2.3-canarytest.1",
+  "version": "0.0.0-canary.0",
   "description": "Library exposing methods for the creation and consumption of Bitcoin transactions pertaining to Babylon's Bitcoin Staking protocol. Experimental version, should not be used for production purposes or with real funds.",
   "module": "dist/index.js",
   "main": "dist/index.cjs",
@@ -15,7 +15,7 @@
     "prepare": "husky",
     "prepublishOnly": "npm run build",
     "test": "jest --verbose",
-    "version:canary": "npm version prerelease --preid=canarytest"
+    "version:canary": "npm version prerelease --preid=canary"
   },
   "files": [
     "dist/*"
