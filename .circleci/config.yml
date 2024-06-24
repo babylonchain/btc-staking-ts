@@ -16,8 +16,36 @@ jobs:
           command: npm install
       - run:
           name: Run tests
-          command: npm run tests
-
+          command: npm run test
+  publish_canary:
+    machine:
+      image: ubuntu-2204:2024.01.1
+    steps:
+      - checkout
+      - node/install:
+          node-version: '21.7'
+      - run:
+          name: Install requirements
+          command: npm install
+      - run:
+          name: Authenticate with NPM registry
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
+      - run:
+          name: Publish canary package
+          command: |
+            npm publish --tag canary
+            if [ $? -ne 0 ]; then
+              echo "npm publish failed, stopping the job."
+              exit 1
+            fi
+  validate_main_version:
+    machine:
+      image: ubuntu-2204:2024.01.1
+    steps:
+      - checkout
+      - run:
+          name: Validate version
+          command: ./bin/validate_version.sh
   publish:
     machine:
       image: ubuntu-2204:2024.01.1
@@ -35,11 +63,24 @@ jobs:
       - run:
           name: Publish package
           command: npm publish
-
 workflows:
   CI:
     jobs:
       - build_and_test
+      - publish_canary:
+          requires:
+            - build_and_test
+          filters:
+            branches:
+              only:
+                - dev
+      - validate_main_version:
+          requires:
+            - build_and_test
+          filters:
+            branches:
+              only:
+                - main
       - require_approval:
           type: approval
           filters:
@@ -50,6 +91,7 @@ workflows:
           requires:
             - build_and_test
             - require_approval
+            - validate_main_version
           filters:
             tags:
               only: /.*/
