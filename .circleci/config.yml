@@ -67,9 +67,16 @@ workflows:
   CI:
     jobs:
       - build_and_test
+      - require_approval_for_canary:
+          type: approval
+          filters:
+            branches:
+              only:
+                - dev
       - publish_canary:
           requires:
             - build_and_test
+            - require_approval_for_canary
           filters:
             branches:
               only:
