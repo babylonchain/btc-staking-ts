@@ -45,7 +45,7 @@ jobs:
       - checkout
       - run:
           name: Validate version
-          command: ./bin/validate_version.sh
+          command: ./bin/ci_validate_version.sh
   publish:
     machine:
       image: ubuntu-2204:2024.01.1
