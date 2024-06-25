@@ -1,4 +1,4 @@
-import { script, opcodes } from "bitcoinjs-lib";
+import { opcodes, script } from "bitcoinjs-lib";
 
 import { StakingScripts } from "../types/StakingScripts";
 
