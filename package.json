@@ -1,6 +1,6 @@
 {
   "name": "btc-staking-ts",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Library exposing methods for the creation and consumption of Bitcoin transactions pertaining to Babylon's Bitcoin Staking protocol. Experimental version, should not be used for production purposes or with real funds.",
   "module": "dist/index.js",
   "main": "dist/index.cjs",
@@ -9,8 +9,8 @@
   "scripts": {
     "generate-types": "dts-bundle-generator -o ./dist/index.d.ts ./src/index.ts",
     "build": "node build.js && npm run generate-types",
-    "format": "prettier --check \"src/**/*.ts\"",
-    "format:fix": "prettier --write \"src/**/*.ts\"",
+    "format": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:fix": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "lint": "eslint ./src --fix",
     "prepare": "husky",
     "prepublishOnly": "npm run build",

@@ -1,27 +1,12 @@
-import { networks } from "bitcoinjs-lib";
-import { initBTCCurve, stakingTransaction } from "../src/index";
-import { getStakingTxInputUTXOsAndFees } from "../src/utils/fee";
 import { BTC_DUST_SAT } from "../src/constants/dustSat";
-import { PsbtTransactionResult } from "../src/types/transaction";
+import { stakingTransaction } from "../src/index";
 import { StakingScripts } from "../src/types/StakingScripts";
-import { DataGenerator } from "./helper";
-
+import { PsbtTransactionResult } from "../src/types/transaction";
+import { getStakingTxInputUTXOsAndFees } from "../src/utils/fee";
+import { buildStakingOutput } from "../src/utils/staking";
+import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "./helper";
 
 describe("stakingTransaction", () => {
-  beforeAll(() => {
-    initBTCCurve();
-  });
-  const testingNetworks = [{
-    networkName: "mainnet",
-    network: networks.bitcoin,
-    dataGenerator: new DataGenerator(networks.bitcoin),
-  }, {
-    networkName: "testnet",
-    network: networks.testnet,
-    dataGenerator: new DataGenerator(networks.testnet)
-  }];
-
-
   describe("Cross env error", () => {
     const [mainnet, testnet] = testingNetworks;
     const mainnetDataGenerator = mainnet.dataGenerator;
@@ -29,11 +14,12 @@ describe("stakingTransaction", () => {
     const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
 
     it("should throw an error if the testnet inputs are used on mainnet", () => {
-      const randomChangeAddress = testnetDataGenerator.getNativeSegwitAddress(
-        mainnetDataGenerator.generateRandomKeyPair().publicKey,
-      );
+      const randomChangeAddress =
+        testnetDataGenerator.getAddressAndScriptPubKey(
+          mainnetDataGenerator.generateRandomKeyPair().publicKey,
+        ).nativeSegwit.address;
       const utxos = testnetDataGenerator.generateRandomUTXOs(
-        Math.floor(Math.random() * 1000000) + randomAmount,
+        randomAmount + 1000000,
         Math.floor(Math.random() * 10) + 1,
       );
       expect(() =>
@@ -53,11 +39,12 @@ describe("stakingTransaction", () => {
     });
 
     it("should throw an error if the mainnet inputs are used on testnet", () => {
-      const randomChangeAddress = mainnetDataGenerator.getNativeSegwitAddress(
-        mainnetDataGenerator.generateRandomKeyPair().publicKey,
-      );
+      const randomChangeAddress =
+        mainnetDataGenerator.getAddressAndScriptPubKey(
+          mainnetDataGenerator.generateRandomKeyPair().publicKey,
+        ).nativeSegwit.address;
       const utxos = mainnetDataGenerator.generateRandomUTXOs(
-        Math.floor(Math.random() * 1000000) + randomAmount,
+        randomAmount + 1000000,
         Math.floor(Math.random() * 10) + 1,
       );
       expect(() =>
@@ -79,30 +66,25 @@ describe("stakingTransaction", () => {
 
   testingNetworks.map(({ networkName, network, dataGenerator }) => {
     const mockScripts = dataGenerator.generateMockStakingScripts();
-    // for easier calculation, we set the fee rate to 1. The dynamic fee rate is tested in the other tests
-    const feeRate = 1
+    const feeRate = DEFAULT_TEST_FEE_RATE;
     const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
     // Create enough utxos to cover the amount
     const utxos = dataGenerator.generateRandomUTXOs(
-      Math.floor(Math.random() * 1000000) + randomAmount,
+      randomAmount + 1000000, // let's give enough satoshis to cover the fee
       Math.floor(Math.random() * 10) + 1,
     );
-    const maxNumOfOutputs = 3;
-    // A rough estimating of the fee, the end result should not be too far from this
-    const { fee: estimatedFee } = getStakingTxInputUTXOsAndFees(utxos, randomAmount, feeRate, maxNumOfOutputs);
-    const changeAddress = dataGenerator.getNativeSegwitAddress(
-      dataGenerator.generateRandomKeyPair().publicKey,
-    );
-    describe("Error path", () => {{
+    describe("Error path", () => {
+      const randomChangeAddress = dataGenerator.getAddressAndScriptPubKey(
+        dataGenerator.generateRandomKeyPair().publicKey,
+      ).taproot.address;
+
       it(`${networkName} - should throw an error if the public key is invalid`, () => {
         const invalidPublicKey = Buffer.from("invalidPublicKey", "hex");
         expect(() =>
           stakingTransaction(
             mockScripts,
             randomAmount,
-            dataGenerator.getNativeSegwitAddress(
-              dataGenerator.generateRandomKeyPair().publicKey,
-            ),
+            randomChangeAddress,
             utxos,
             network,
             feeRate,
@@ -112,13 +94,19 @@ describe("stakingTransaction", () => {
       });
 
       it(`${networkName} - should throw an error if the change address is invalid`, () => {
-        const validAddress = dataGenerator.getNativeSegwitAddress(
+        const validAddress = dataGenerator.getAddressAndScriptPubKey(
           dataGenerator.generateRandomKeyPair().publicKey,
-        );
-        const invalidCharInAddress = validAddress.replace(validAddress[0], "I") // I is an invalid character in base58
-        const invalidAddressLegnth = validAddress.slice(0, -1)
-        const invalidAddresses = ["" , " ", "banana", invalidCharInAddress, invalidAddressLegnth]
-        invalidAddresses.map(a => {
+        ).taproot.address;
+        const invalidCharInAddress = validAddress.replace(validAddress[0], "I"); // I is an invalid character in base58
+        const invalidAddressLegnth = validAddress.slice(0, -1);
+        const invalidAddresses = [
+          "",
+          " ",
+          "banana",
+          invalidCharInAddress,
+          invalidAddressLegnth,
+        ];
+        invalidAddresses.map((a) => {
           expect(() =>
             stakingTransaction(
               mockScripts,
@@ -134,24 +122,46 @@ describe("stakingTransaction", () => {
 
       it(`${networkName} - should throw an error if the utxo value is too low`, () => {
         // generate a UTXO that is too small to cover the fee
+        const scriptPubKey = dataGenerator.getAddressAndScriptPubKey(
+          dataGenerator.generateRandomKeyPair().publicKey,
+        ).taproot.scriptPubKey;
         const utxo = {
           txid: dataGenerator.generateRandomTxId(),
           vout: Math.floor(Math.random() * 10),
-          scriptPubKey: dataGenerator.generateRandomKeyPair().publicKey,
+          scriptPubKey: scriptPubKey,
           value: 1,
-        }
+        };
         expect(() =>
           stakingTransaction(
             mockScripts,
             randomAmount,
-            dataGenerator.getNativeSegwitAddress(
-              dataGenerator.generateRandomKeyPair().publicKey,
-            ),
+            randomChangeAddress,
             [utxo],
             network,
             1,
           ),
-        ).toThrow("Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees.");
+        ).toThrow(
+          "Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees",
+        );
+      });
+
+      it(`${networkName} - should throw an error if the utxo scriptPubKey is invalid`, () => {
+        const utxo = {
+          txid: dataGenerator.generateRandomTxId(),
+          vout: Math.floor(Math.random() * 10),
+          scriptPubKey: `abc${dataGenerator.generateRandomKeyPair().publicKey}`, // this is not a valid scriptPubKey
+          value: 10000000000000,
+        };
+        expect(() =>
+          stakingTransaction(
+            mockScripts,
+            randomAmount,
+            randomChangeAddress,
+            [utxo],
+            network,
+            1,
+          ),
+        ).toThrow("Failed to decompile script when estimating fees for inputs");
       });
 
       it(`${networkName} - should throw an error if UTXO is empty`, () => {
@@ -159,9 +169,7 @@ describe("stakingTransaction", () => {
           stakingTransaction(
             mockScripts,
             randomAmount,
-            dataGenerator.getNativeSegwitAddress(
-              dataGenerator.generateRandomKeyPair().publicKey,
-            ),
+            randomChangeAddress,
             [],
             network,
             1,
@@ -176,9 +184,7 @@ describe("stakingTransaction", () => {
           stakingTransaction(
             mockScripts,
             randomAmount,
-            dataGenerator.getNativeSegwitAddress(
-              dataGenerator.generateRandomKeyPair().publicKey,
-            ),
+            randomChangeAddress,
             utxos,
             network,
             feeRate,
@@ -194,139 +200,197 @@ describe("stakingTransaction", () => {
           stakingTransaction(
             mockScripts,
             0, // Invalid amount
-            dataGenerator.getNativeSegwitAddress(
-              dataGenerator.generateRandomKeyPair().publicKey,
-            ),
+            randomChangeAddress,
             utxos,
             network,
             dataGenerator.generateRandomFeeRates(), // Valid fee rate
           ),
         ).toThrow("Amount and fee rate must be bigger than 0");
-    
+
         // Test case: amount is -1
         expect(() =>
           stakingTransaction(
             mockScripts,
             -1, // Invalid amount
-            dataGenerator.getNativeSegwitAddress(
-              dataGenerator.generateRandomKeyPair().publicKey,
-            ),
+            randomChangeAddress,
             utxos,
             network,
             dataGenerator.generateRandomFeeRates(), // Valid fee rate
           ),
         ).toThrow("Amount and fee rate must be bigger than 0");
       });
-  
-  
+
       it("should throw an error if the fee rate is less than or equal to 0", () => {
         // Test case: fee rate is 0
         expect(() =>
           stakingTransaction(
             mockScripts,
             randomAmount,
-            dataGenerator.getNativeSegwitAddress(
-              dataGenerator.generateRandomKeyPair().publicKey,
-            ),
+            randomChangeAddress,
             utxos,
             network,
             0, // Invalid fee rate
           ),
         ).toThrow("Amount and fee rate must be bigger than 0");
-    
+
         // Test case: fee rate is -1
         expect(() =>
           stakingTransaction(
             mockScripts,
             randomAmount,
-            dataGenerator.getNativeSegwitAddress(
-              dataGenerator.generateRandomKeyPair().publicKey,
-            ),
+            randomChangeAddress,
             utxos,
             network,
             -1, // Invalid fee rate
           ),
         ).toThrow("Amount and fee rate must be bigger than 0");
       });
-    }});
 
-    describe("Happy path", () => {
-      it(`${networkName} - should return a valid psbt result`, () => {
-        const psbtResult = stakingTransaction(
-          mockScripts,
-          randomAmount,
-          changeAddress,
-          utxos,
+      describe("Happy path", () => {
+        // build the outputs
+        const outputs = buildStakingOutput(mockScripts, network, randomAmount);
+        // A rough estimating of the fee, the end result should not be too far from this
+        const { fee: estimatedFee } = getStakingTxInputUTXOsAndFees(
           network,
-          feeRate,
-        )
-        validateCommonFields(psbtResult, randomAmount, estimatedFee, changeAddress, mockScripts)
-      });
-  
-      it(`${networkName} - should return a valid psbt result with tapInternalKey`, () => {
-        const psbtResult = stakingTransaction(
-          mockScripts,
-          randomAmount,
-          changeAddress,
           utxos,
-          network,
-          feeRate,
-          Buffer.from(
-            dataGenerator.generateRandomKeyPair(true).publicKey,
-            "hex",
-          ),
-        )
-        validateCommonFields(psbtResult, randomAmount, estimatedFee, changeAddress, mockScripts)
-      });
-  
-      it(`${networkName} - should return a valid psbt result with lock field`, () => {
-        const lockHeight = Math.floor(Math.random() * 1000000) + 100;
-        const psbtResult = stakingTransaction(
-          mockScripts,
           randomAmount,
-          changeAddress,
-          utxos,
-          network,
           feeRate,
-          Buffer.from(
-            dataGenerator.generateRandomKeyPair(true).publicKey,
-            "hex",
-          ),
-          lockHeight,
-        )
-        validateCommonFields(psbtResult, randomAmount, estimatedFee, changeAddress, mockScripts)
-        // check the lock height is correct
-        expect(psbtResult.psbt.locktime).toEqual(lockHeight)
+          outputs,
+        );
+        const { taproot, nativeSegwit } =
+          dataGenerator.getAddressAndScriptPubKey(
+            dataGenerator.generateRandomKeyPair().publicKey,
+          );
+        it(`${networkName} - should return a valid psbt result`, () => {
+          const psbtResultTaproot = stakingTransaction(
+            mockScripts,
+            randomAmount,
+            taproot.address,
+            utxos,
+            network,
+            feeRate,
+          );
+          validateCommonFields(
+            psbtResultTaproot,
+            randomAmount,
+            estimatedFee,
+            taproot.address,
+            mockScripts,
+          );
+
+          const psbtResultNativeSegwit = stakingTransaction(
+            mockScripts,
+            randomAmount,
+            nativeSegwit.address,
+            utxos,
+            network,
+            feeRate,
+          );
+          validateCommonFields(
+            psbtResultNativeSegwit,
+            randomAmount,
+            estimatedFee,
+            nativeSegwit.address,
+            mockScripts,
+          );
+        });
+
+        it(`${networkName} - should return a valid psbt result with tapInternalKey`, () => {
+          const psbtResult = stakingTransaction(
+            mockScripts,
+            randomAmount,
+            taproot.address,
+            utxos,
+            network,
+            feeRate,
+            Buffer.from(
+              dataGenerator.generateRandomKeyPair(true).publicKey,
+              "hex",
+            ),
+          );
+          validateCommonFields(
+            psbtResult,
+            randomAmount,
+            estimatedFee,
+            taproot.address,
+            mockScripts,
+          );
+        });
+
+        it(`${networkName} - should return a valid psbt result with lock field`, () => {
+          const lockHeight = Math.floor(Math.random() * 1000000) + 100;
+          const psbtResult = stakingTransaction(
+            mockScripts,
+            randomAmount,
+            taproot.address,
+            utxos,
+            network,
+            feeRate,
+            Buffer.from(
+              dataGenerator.generateRandomKeyPair(true).publicKey,
+              "hex",
+            ),
+            lockHeight,
+          );
+          validateCommonFields(
+            psbtResult,
+            randomAmount,
+            estimatedFee,
+            taproot.address,
+            mockScripts,
+          );
+          // check the lock height is correct
+          expect(psbtResult.psbt.locktime).toEqual(lockHeight);
+        });
       });
-    });    
+    });
   });
 });
 
 const validateCommonFields = (
-  psbtResult: PsbtTransactionResult, randomAmount: number, estimatedFee: number, 
-  changeAddress: string, mockScripts: StakingScripts,
+  psbtResult: PsbtTransactionResult,
+  randomAmount: number,
+  estimatedFee: number,
+  changeAddress: string,
+  mockScripts: StakingScripts,
 ) => {
   expect(psbtResult).toBeDefined();
-  // Expect not be too far from the estimated fee
-  expect(Math.abs(psbtResult.fee-estimatedFee)).toBeLessThan(1000)
+  // expect the estimated fee and the actual fee is the same
+  expect(psbtResult.fee).toBe(estimatedFee);
   // make sure the input amount is greater than the output amount
-  const { psbt, fee} = psbtResult;
-  const inputAmount = psbt.data.inputs.reduce((sum, input) => sum + input.witnessUtxo!.value, 0);
-  const outputAmount = psbt.txOutputs.reduce((sum, output) => sum + output.value, 0);
-  expect(inputAmount).toBeGreaterThan(outputAmount)
-  expect(inputAmount - outputAmount).toEqual(fee)
+  const { psbt, fee } = psbtResult;
+  const inputAmount = psbt.data.inputs.reduce(
+    (sum, input) => sum + input.witnessUtxo!.value,
+    0,
+  );
+  const outputAmount = psbt.txOutputs.reduce(
+    (sum, output) => sum + output.value,
+    0,
+  );
+  expect(inputAmount).toBeGreaterThan(outputAmount);
+  expect(inputAmount - outputAmount - fee).toBeLessThan(BTC_DUST_SAT);
   // check the change amount is correct and send to the correct address
   if (inputAmount - (randomAmount + fee) > BTC_DUST_SAT) {
     const expectedChangeAmount = inputAmount - (randomAmount + fee);
-    const changeOutput = psbt.txOutputs.find(output => output.value === expectedChangeAmount);
+    const changeOutput = psbt.txOutputs.find(
+      (output) => output.value === expectedChangeAmount,
+    );
     expect(changeOutput).toBeDefined();
     // also make sure the change address is correct by look up the `address`
-    expect(psbt.txOutputs.find(output => output.address === changeAddress)).toBeDefined();
+    expect(
+      psbt.txOutputs.find((output) => output.address === changeAddress),
+    ).toBeDefined();
   }
 
   // check data embed output added to the transaction
-  expect(psbt.txOutputs.find(output => output.script.equals(mockScripts.dataEmbedScript))).toBeDefined();
+  expect(
+    psbt.txOutputs.find((output) =>
+      output.script.equals(mockScripts.dataEmbedScript),
+    ),
+  ).toBeDefined();
 
   // Check the staking amount is correct
-  expect(psbt.txOutputs.find(output => output.value === randomAmount)).toBeDefined();
-}
+  expect(
+    psbt.txOutputs.find((output) => output.value === randomAmount),
+  ).toBeDefined();
+};
