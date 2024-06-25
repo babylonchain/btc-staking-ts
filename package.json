@@ -34,8 +34,7 @@
   "lint-staged": {
     "src/**/*.ts": [
       "prettier --write",
-      "eslint --fix",
-      "git add"
+      "eslint --fix"
     ]
   },
   "author": "Babylonchain Inc.",
