@@ -10,7 +10,7 @@
 <br/>
 
 ## Notice
-
+ 
 The library is in an experimental version and should not be used for production
 purposes and with real funds.
 
@@ -18,6 +18,20 @@ purposes and with real funds.
 
 ```console
 npm i btc-staking-ts
+```
+
+## Version Release
+
+### Stable version
+
+Stable release versions are manually released from the main branch.
+
+### Canary version
+
+A canary version is a pre-release version. Make sure all changes are added and committed before running the command below:
+
+```console
+npm run version:canary
 ```
 
 ## Usage

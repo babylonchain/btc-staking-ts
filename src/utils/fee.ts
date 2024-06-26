@@ -31,24 +31,29 @@ export const ESTIMATED_OP_RETURN_SIZE = 40;
  * @returns The estimated transaction fee in satoshis.
  */
 export const getEstimatedFee = (
-    feeRate: number, numInputs: number, numOutputs: number,
+  feeRate: number,
+  numInputs: number,
+  numOutputs: number,
 ): number => {
-    return (
-        numInputs * INPUT_SIZE_FOR_FEE_CAL +
-        numOutputs * OUTPUT_SIZE_FOR_FEE_CAL +
-        TX_BUFFER_SIZE_FOR_FEE_CAL + numInputs + ESTIMATED_OP_RETURN_SIZE
-    ) * feeRate;
-}
+  return (
+    (numInputs * INPUT_SIZE_FOR_FEE_CAL +
+      numOutputs * OUTPUT_SIZE_FOR_FEE_CAL +
+      TX_BUFFER_SIZE_FOR_FEE_CAL +
+      numInputs +
+      ESTIMATED_OP_RETURN_SIZE) *
+    feeRate
+  );
+};
 
 // inputValueSum returns the sum of the values of the UTXOs
 export const inputValueSum = (inputUTXOs: UTXO[]): number => {
-    return inputUTXOs.reduce((acc, utxo) => acc + utxo.value, 0);
-}
+  return inputUTXOs.reduce((acc, utxo) => acc + utxo.value, 0);
+};
 
 /**
  * Selects UTXOs and calculates the fee for a staking transaction.
  *
- * This method selects the highest value UTXOs from all available UTXOs to 
+ * This method selects the highest value UTXOs from all available UTXOs to
  * cover the staking amount and the transaction fees.
  *
  * Inputs:
@@ -69,42 +74,44 @@ export const inputValueSum = (inputUTXOs: UTXO[]): number => {
  * @throws Will throw an error if there are insufficient funds or if the fee cannot be calculated.
  */
 export const getStakingTxInputUTXOsAndFees = (
-    availableUTXOs: UTXO[],
-    stakingAmount: number,
-    feeRate: number,
-    numOfOutputs: number,
+  availableUTXOs: UTXO[],
+  stakingAmount: number,
+  feeRate: number,
+  numOfOutputs: number,
 ): {
-    selectedUTXOs: UTXO[],
-    fee: number,
+  selectedUTXOs: UTXO[];
+  fee: number;
 } => {
-    if (availableUTXOs.length === 0) {
-        throw new Error("Insufficient funds");
-    }
-    // Sort available UTXOs from highest to lowest value
-    availableUTXOs.sort((a, b) => b.value - a.value);
+  if (availableUTXOs.length === 0) {
+    throw new Error("Insufficient funds");
+  }
+  // Sort available UTXOs from highest to lowest value
+  availableUTXOs.sort((a, b) => b.value - a.value);
 
-    const selectedUTXOs: UTXO[] = [];
-    let accumulatedValue = 0;
-    let estimatedFee;
+  const selectedUTXOs: UTXO[] = [];
+  let accumulatedValue = 0;
+  let estimatedFee;
 
-    for (const utxo of availableUTXOs) {
-        selectedUTXOs.push(utxo);
-        accumulatedValue += utxo.value;
-        estimatedFee = getEstimatedFee(feeRate, selectedUTXOs.length, numOfOutputs);
-        if (accumulatedValue >= stakingAmount + estimatedFee) {
-            break;
-        }
+  for (const utxo of availableUTXOs) {
+    selectedUTXOs.push(utxo);
+    accumulatedValue += utxo.value;
+    estimatedFee = getEstimatedFee(feeRate, selectedUTXOs.length, numOfOutputs);
+    if (accumulatedValue >= stakingAmount + estimatedFee) {
+      break;
     }
-    if (!estimatedFee) {
-        throw new Error("Unable to calculate fee.");
-    }
+  }
+  if (!estimatedFee) {
+    throw new Error("Unable to calculate fee.");
+  }
 
-    if (accumulatedValue < stakingAmount + estimatedFee) {
-        throw new Error("Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees.");
-    }
+  if (accumulatedValue < stakingAmount + estimatedFee) {
+    throw new Error(
+      "Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees.",
+    );
+  }
 
-    return {
-        selectedUTXOs,
-        fee: estimatedFee,
-    };
-}
+  return {
+    selectedUTXOs,
+    fee: estimatedFee,
+  };
+};
