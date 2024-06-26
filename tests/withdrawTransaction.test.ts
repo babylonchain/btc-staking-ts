@@ -11,6 +11,96 @@ describe("stakingTransaction", () => {
     initBTCCurve();
   });
 
+  describe("Cross env error", () => {
+    const [mainnet, testnet] = testingNetworks;
+    const mainnetDataGenerator = mainnet.dataGenerator;
+    const testnetDataGenerator = testnet.dataGenerator;
+    const feeRate = 1;
+
+    it("should throw an error if the testnet inputs are used on mainnet", () => {
+      const randomWithdrawAddress = mainnetDataGenerator.getNativeSegwitAddress(
+        testnetDataGenerator.generateRandomKeyPair().publicKey,
+      );
+
+      const tx = mainnetDataGenerator.generateRandomTx().extractTransaction();
+
+      const {
+        timelockScript,
+        slashingScript,
+        unbondingScript,
+        unbondingTimelockScript,
+      } = mainnetDataGenerator.generateMockStakingScripts();
+
+      expect(() =>
+        withdrawEarlyUnbondedTransaction(
+          {
+            unbondingTimelockScript,
+            slashingScript,
+          },
+          tx,
+          randomWithdrawAddress,
+          mainnet.network,
+          feeRate,
+        ),
+      ).toThrow("Invalid withdrawal address");
+
+      expect(() =>
+        withdrawTimelockUnbondedTransaction(
+          {
+            timelockScript,
+            slashingScript,
+            unbondingScript,
+          },
+          tx,
+          randomWithdrawAddress,
+          mainnet.network,
+          feeRate,
+        ),
+      ).toThrow("Invalid withdrawal address");
+    });
+
+    it("should throw an error if the mainnet inputs are used on testnet", () => {
+      const randomWithdrawAddress = testnetDataGenerator.getNativeSegwitAddress(
+        mainnetDataGenerator.generateRandomKeyPair().publicKey,
+      );
+      const {
+        timelockScript,
+        slashingScript,
+        unbondingScript,
+        unbondingTimelockScript,
+      } = testnetDataGenerator.generateMockStakingScripts();
+
+      const tx = testnetDataGenerator.generateRandomTx().extractTransaction();
+
+      expect(() =>
+        withdrawEarlyUnbondedTransaction(
+          {
+            unbondingTimelockScript,
+            slashingScript,
+          },
+          tx,
+          randomWithdrawAddress,
+          testnet.network,
+          feeRate,
+        ),
+      ).toThrow("Invalid withdrawal address");
+
+      expect(() =>
+        withdrawTimelockUnbondedTransaction(
+          {
+            timelockScript,
+            slashingScript,
+            unbondingScript,
+          },
+          tx,
+          randomWithdrawAddress,
+          testnet.network,
+          feeRate,
+        ),
+      ).toThrow("Invalid withdrawal address");
+    });
+  });
+
   testingNetworks.map(({ networkName, network, dataGenerator }) => {
     const feeRate = 1;
     const withdrawalAddress = dataGenerator.getNativeSegwitAddress(
