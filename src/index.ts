@@ -1,23 +1,20 @@
-import {
-  script,
-  payments,
-  Psbt,
-  Transaction,
-  networks,
-  address,
-} from "bitcoinjs-lib";
+import { Psbt, Transaction, networks, payments, script } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 
-import { internalPubkey } from "./constants/internalPubkey";
-import { initBTCCurve } from "./utils/curve";
-import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
-import { PsbtTransactionResult } from "./types/transaction";
-import { UTXO } from "./types/UTXO";
-import { getEstimatedFee, inputValueSum, getStakingTxInputUTXOsAndFees } from "./utils/fee";
-import { isValidBitcoinAddress } from "./utils/address";
 import { BTC_DUST_SAT } from "./constants/dustSat";
+import { internalPubkey } from "./constants/internalPubkey";
+import { UTXO } from "./types/UTXO";
+import { PsbtTransactionResult } from "./types/transaction";
+import { isValidBitcoinAddress } from "./utils/address";
+import { initBTCCurve } from "./utils/curve";
+import {
+  getEstimatedFee,
+  getStakingTxInputUTXOsAndFees,
+  inputValueSum,
+} from "./utils/fee";
+import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
 
-export { initBTCCurve, StakingScriptData };
+export { StakingScriptData, initBTCCurve };
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
@@ -26,14 +23,14 @@ const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
  * Constructs an unsigned BTC Staking transaction in psbt format.
  *
  * Outputs:
- * - psbt: 
+ * - psbt:
  *   - The first output corresponds to the staking script with the specified amount.
  *   - The second output corresponds to the change from spending the amount and the transaction fee.
  *   - If a data embed script is provided, it will be added as the second output, and the fee will be the third output.
  * - fee: The total fee amount for the transaction.
  *
  * Inputs:
- * - scripts: 
+ * - scripts:
  *   - timelockScript, unbondingScript, slashingScript: Scripts for different transaction types.
  *   - dataEmbedScript: Optional data embed script.
  * - amount: Amount to stake.
@@ -44,7 +41,7 @@ const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
  * - publicKeyNoCoord: Public key if the wallet is in taproot mode.
  * - lockHeight: Optional block height locktime to set for the transaction (i.e., not mined until the block height).
  *
- * @param {Object} scripts - Scripts used to construct the taproot output. 
+ * @param {Object} scripts - Scripts used to construct the taproot output.
  * such as timelockScript, unbondingScript, slashingScript, and dataEmbedScript.
  * @param {number} amount - The amount to stake.
  * @param {string} changeAddress - The address to send the change to.
@@ -54,15 +51,15 @@ const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
  * @param {Buffer} [publicKeyNoCoord] - The public key if the wallet is in taproot mode.
  * @param {number} [lockHeight] - The optional block height locktime.
  * @returns {PsbtTransactionResult} The partially signed transaction and the fee.
- * @throws Will throw an error if the amount or fee rate is less than or equal 
+ * @throws Will throw an error if the amount or fee rate is less than or equal
  * to 0, if the change address is invalid, or if the public key is invalid.
  */
 export function stakingTransaction(
   scripts: {
-    timelockScript: Buffer,
-    unbondingScript: Buffer,
-    slashingScript: Buffer,
-    dataEmbedScript?: Buffer,
+    timelockScript: Buffer;
+    unbondingScript: Buffer;
+    slashingScript: Buffer;
+    dataEmbedScript?: Buffer;
   },
   amount: number,
   changeAddress: string,
@@ -91,7 +88,10 @@ export function stakingTransaction(
   // We have 2 outputs by default: staking output and change output
   const numOutputs = scripts.dataEmbedScript ? 3 : 2;
   const { selectedUTXOs, fee } = getStakingTxInputUTXOsAndFees(
-    inputUTXOs, amount, feeRate, numOutputs
+    inputUTXOs,
+    amount,
+    feeRate,
+    numOutputs,
   );
 
   // Create a partially signed transaction
@@ -143,7 +143,7 @@ export function stakingTransaction(
   // Add a change output only if there's any amount leftover from the inputs
   const inputsSum = inputValueSum(selectedUTXOs);
   // Check if the change amount is above the dust limit, and if so, add it as a change output
-  if ((inputsSum - (amount + fee)) > BTC_DUST_SAT) {
+  if (inputsSum - (amount + fee) > BTC_DUST_SAT) {
     psbt.addOutput({
       address: changeAddress,
       value: inputsSum - (amount + fee),
@@ -161,7 +161,7 @@ export function stakingTransaction(
 
   return {
     psbt,
-    fee
+    fee,
   };
 }
 
@@ -193,8 +193,8 @@ export function stakingTransaction(
  */
 export function withdrawEarlyUnbondedTransaction(
   scripts: {
-    unbondingTimelockScript: Buffer,
-    slashingScript: Buffer,
+    unbondingTimelockScript: Buffer;
+    slashingScript: Buffer;
   },
   tx: Transaction,
   withdrawalAddress: string,
@@ -251,9 +251,9 @@ export function withdrawEarlyUnbondedTransaction(
  */
 export function withdrawTimelockUnbondedTransaction(
   scripts: {
-    timelockScript: Buffer,
-    slashingScript: Buffer,
-    unbondingScript: Buffer,
+    timelockScript: Buffer;
+    slashingScript: Buffer;
+    unbondingScript: Buffer;
   },
   tx: Transaction,
   withdrawalAddress: string,
@@ -283,7 +283,7 @@ export function withdrawTimelockUnbondedTransaction(
 // spends the staking output of the staking transaction
 function withdrawalTransaction(
   scripts: {
-    timelockScript: Buffer,
+    timelockScript: Buffer;
   },
   scriptTree: Taptree,
   tx: Transaction,
@@ -366,7 +366,9 @@ function withdrawalTransaction(
   const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, 1);
   const value = tx.outs[outputIndex].value - estimatedFee;
   if (!value) {
-    throw new Error("Not enough funds to cover the fee for withdrawal transaction");
+    throw new Error(
+      "Not enough funds to cover the fee for withdrawal transaction",
+    );
   }
   psbt.addOutput({
     address: withdrawalAddress,
@@ -375,7 +377,7 @@ function withdrawalTransaction(
 
   return {
     psbt,
-    fee: estimatedFee
+    fee: estimatedFee,
   };
 }
 
@@ -413,10 +415,10 @@ function withdrawalTransaction(
  */
 export function slashTimelockUnbondedTransaction(
   scripts: {
-    slashingScript: Buffer,
-    timelockScript: Buffer,
-    unbondingScript: Buffer,
-    unbondingTimelockScript: Buffer,
+    slashingScript: Buffer;
+    timelockScript: Buffer;
+    unbondingScript: Buffer;
+    unbondingTimelockScript: Buffer;
   },
   stakingTransaction: Transaction,
   slashingAddress: string,
@@ -481,8 +483,8 @@ export function slashTimelockUnbondedTransaction(
  */
 export function slashEarlyUnbondedTransaction(
   scripts: {
-    slashingScript: Buffer,
-    unbondingTimelockScript: Buffer,
+    slashingScript: Buffer;
+    unbondingTimelockScript: Buffer;
   },
   stakingTransaction: Transaction,
   slashingAddress: string,
@@ -496,7 +498,7 @@ export function slashEarlyUnbondedTransaction(
       output: scripts.slashingScript,
     },
     {
-      output: scripts.unbondingTimelockScript
+      output: scripts.unbondingTimelockScript,
     },
   ];
   return slashingTransaction(
@@ -546,8 +548,8 @@ export function slashEarlyUnbondedTransaction(
  */
 function slashingTransaction(
   scripts: {
-    unbondingTimelockScript: Buffer,
-    slashingScript: Buffer,
+    unbondingTimelockScript: Buffer;
+    slashingScript: Buffer;
   },
   scriptTree: Taptree,
   transaction: Transaction,
@@ -557,7 +559,7 @@ function slashingTransaction(
   network: networks.Network,
   outputIndex: number = 0,
 ): {
-  psbt: Psbt
+  psbt: Psbt;
 } {
   // Check that slashing rate and minimum fee are bigger than 0
   if (slashingRate <= 0 || minimumFee <= 0) {
@@ -599,7 +601,8 @@ function slashingTransaction(
     tapLeafScript: [tapLeafScript],
   });
 
-  const userValue = transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee;
+  const userValue =
+    transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee;
 
   // We need to verify that this is above 0
   if (userValue <= 0) {
@@ -623,7 +626,8 @@ function slashingTransaction(
   // Add the change output
   psbt.addOutput({
     address: changeOutput.address!,
-    value: transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee,
+    value:
+      transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee,
   });
 
   return { psbt };
@@ -631,17 +635,17 @@ function slashingTransaction(
 
 export function unbondingTransaction(
   scripts: {
-    unbondingScript: Buffer,
-    unbondingTimelockScript: Buffer,
-    timelockScript: Buffer,
-    slashingScript: Buffer,
+    unbondingScript: Buffer;
+    unbondingTimelockScript: Buffer;
+    timelockScript: Buffer;
+    slashingScript: Buffer;
   },
   stakingTx: Transaction,
   transactionFee: number,
   network: networks.Network,
   outputIndex: number = 0,
 ): {
-  psbt: Psbt
+  psbt: Psbt;
 } {
   // Check that transaction fee is bigger than 0
   if (transactionFee <= 0) {
@@ -706,7 +710,9 @@ export function unbondingTransaction(
   });
   const value = stakingTx.outs[outputIndex].value - transactionFee;
   if (!value) {
-    throw new Error("Not enough funds to cover the fee for unbonding transaction");
+    throw new Error(
+      "Not enough funds to cover the fee for unbonding transaction",
+    );
   }
   // Add the unbonding output
   psbt.addOutput({
@@ -715,7 +721,7 @@ export function unbondingTransaction(
   });
 
   return {
-    psbt
+    psbt,
   };
 }
 
