@@ -1,26 +1,15 @@
-import { networks } from "bitcoinjs-lib";
 import { initBTCCurve, stakingTransaction } from "../src/index";
 import { getStakingTxInputUTXOsAndFees } from "../src/utils/fee";
 import { BTC_DUST_SAT } from "../src/constants/dustSat";
 import { PsbtTransactionResult } from "../src/types/transaction";
 import { StakingScripts } from "../src/types/StakingScripts";
-import { DataGenerator } from "./helper";
+import { testingNetworks } from "./helper";
 
 
 describe("stakingTransaction", () => {
   beforeAll(() => {
     initBTCCurve();
   });
-  const testingNetworks = [{
-    networkName: "mainnet",
-    network: networks.bitcoin,
-    dataGenerator: new DataGenerator(networks.bitcoin),
-  }, {
-    networkName: "testnet",
-    network: networks.testnet,
-    dataGenerator: new DataGenerator(networks.testnet)
-  }];
-
 
   describe("Cross env error", () => {
     const [mainnet, testnet] = testingNetworks;
