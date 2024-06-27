@@ -9,8 +9,8 @@
   "scripts": {
     "generate-types": "dts-bundle-generator -o ./dist/index.d.ts ./src/index.ts",
     "build": "node build.js && npm run generate-types",
-    "format": "prettier --check \"src/**/*.ts\"",
-    "format:fix": "prettier --write \"src/**/*.ts\"",
+    "format": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:fix": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "lint": "eslint ./src --fix",
     "prepare": "husky",
     "prepublishOnly": "npm run build",

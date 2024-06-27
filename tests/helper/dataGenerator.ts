@@ -1,17 +1,20 @@
-import ECPairFactory, { ECPairInterface } from "ecpair";
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
-import * as bitcoin from 'bitcoinjs-lib';
-import { StakingScripts } from "../../src/types/StakingScripts";
+import * as bitcoin from "bitcoinjs-lib";
+import ECPairFactory, { ECPairInterface } from "ecpair";
 import { StakingScriptData, stakingTransaction } from "../../src";
+import { StakingScripts } from "../../src/types/StakingScripts";
 import { UTXO } from "../../src/types/UTXO";
 
+bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
 
+export const DEFAULT_TEST_FEE_RATE = 10;
+
 export interface KeyPair {
-  privateKey: string,
-  publicKey: string,
-  publicKeyNoCoord: string,
-  keyPair: ECPairInterface,
+  privateKey: string;
+  publicKey: string;
+  publicKeyNoCoord: string;
+  keyPair: ECPairInterface;
 }
 
 class DataGenerator {
@@ -96,28 +99,36 @@ class DataGenerator {
       publicKey = publicKey.slice(2);
     }
     const internalPubkey = Buffer.from(publicKey, "hex");
-    const { address } = bitcoin.payments.p2tr({
+    const { address, output: scriptPubKey } = bitcoin.payments.p2tr({
       internalPubkey,
       network: this.network,
     });
-    if (!address) {
-      throw new Error("Failed to generate taproot address from public key");
+    if (!address || !scriptPubKey) {
+      throw new Error(
+        "Failed to generate taproot address or script from public key",
+      );
     }
-    return address;
+    return {
+      address,
+      scriptPubKey: scriptPubKey.toString("hex"),
+    };
   };
 
   getNativeSegwitAddress = (publicKey: string) => {
     const internalPubkey = Buffer.from(publicKey, "hex");
-    const { address } = bitcoin.payments.p2wpkh({
+    const { address, output: scriptPubKey } = bitcoin.payments.p2wpkh({
       pubkey: internalPubkey,
       network: this.network,
     });
-    if (!address) {
+    if (!address || !scriptPubKey) {
       throw new Error(
-        "Failed to generate native segwit address from public key",
+        "Failed to generate native segwit address or script from public key",
       );
     }
-    return address;
+    return {
+      address,
+      scriptPubKey: scriptPubKey.toString("hex"),
+    };
   };
 
   getNetwork = () => {
@@ -165,6 +176,13 @@ class DataGenerator {
     return scripts;
   };
 
+  getAddressAndScriptPubKey = (publicKey: string) => {
+    return {
+      taproot: this.getTaprootAddress(publicKey),
+      nativeSegwit: this.getNativeSegwitAddress(publicKey),
+    };
+  };
+
   generateRandomUTXOs = (
     minAvailableBalance: number,
     numberOfUTXOs: number,
@@ -173,15 +191,14 @@ class DataGenerator {
     const utxos = [];
     let sum = 0;
     for (let i = 0; i < numberOfUTXOs; i++) {
-      const keyPair = publicKey ? { publicKey } : this.generateRandomKeyPair();
-      const payment = bitcoin.payments.p2wpkh({
-        pubkey: Buffer.from(keyPair.publicKey, "hex"),
-        network: this.network,
-      });
+      const { nativeSegwit } = this.getAddressAndScriptPubKey(
+        publicKey ? publicKey : this.generateRandomKeyPair().publicKey,
+      );
+
       utxos.push({
         txid: this.generateRandomTxId(),
         vout: Math.floor(Math.random() * 10),
-        scriptPubKey: payment.output!.toString("hex"),
+        scriptPubKey: nativeSegwit.scriptPubKey,
         value: Math.floor(Math.random() * 9000) + minAvailableBalance,
       });
       sum += utxos[i].value;
@@ -193,35 +210,34 @@ class DataGenerator {
   };
 
   generateRandomStakingTransaction = (
-  network: bitcoin.Network,
+    network: bitcoin.Network,
     feeRate: number,
     keyPair: KeyPair,
     address: string,
-  stakingScripts: StakingScripts
+    stakingScripts: StakingScripts,
   ) => {
-  const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
-  const utxos = this.generateRandomUTXOs(
-    Math.floor(Math.random() * 1000000) + randomAmount,
-    Math.floor(Math.random() * 10) + 1,
-    keyPair.publicKey,
-  );
-  const { timelockScript, slashingScript, unbondingScript } = stakingScripts;
-  const { psbt } = stakingTransaction(
-    { timelockScript, slashingScript, unbondingScript },
-    randomAmount,
-    address,
-    utxos,
-    network,
-    feeRate,
-  );
-  
-  psbt.signInput(0, keyPair.keyPair);
-  psbt.finalizeAllInputs();
+    const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
 
-  const transaction = psbt.extractTransaction();
+    const utxos = this.generateRandomUTXOs(
+      Math.floor(Math.random() * 1000000) + randomAmount,
+      Math.floor(Math.random() * 10) + 1,
+      keyPair.publicKey,
+    );
 
-  return transaction;
-};
+    const { psbt } = stakingTransaction(
+      stakingScripts,
+      randomAmount,
+      address,
+      utxos,
+      network,
+      feeRate,
+    );
+
+    return psbt
+      .signAllInputs(keyPair.keyPair)
+      .finalizeAllInputs()
+      .extractTransaction();
+  };
 }
 
 export default DataGenerator;

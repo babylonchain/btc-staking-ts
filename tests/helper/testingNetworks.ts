@@ -7,7 +7,10 @@ export interface NetworkConfig {
   dataGenerator: DataGenerator;
 }
 
-const createNetworkConfig = (networkName: string, network: bitcoin.Network): NetworkConfig => ({
+const createNetworkConfig = (
+  networkName: string,
+  network: bitcoin.Network,
+): NetworkConfig => ({
   networkName,
   network,
   dataGenerator: new DataGenerator(network),
