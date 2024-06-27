@@ -34,7 +34,7 @@ describe("stakingTransaction", () => {
           mainnet.network,
           1,
           Buffer.from(
-            testnetDataGenerator.generateRandomKeyPair(true).publicKey,
+            testnetDataGenerator.generateRandomKeyPair().publicKeyNoCoord,
             "hex",
           ),
         ),
@@ -58,7 +58,7 @@ describe("stakingTransaction", () => {
           testnet.network,
           1,
           Buffer.from(
-            mainnetDataGenerator.generateRandomKeyPair(true).publicKey,
+            mainnetDataGenerator.generateRandomKeyPair().publicKeyNoCoord,
             "hex",
           ),
         ),
@@ -261,7 +261,7 @@ describe("stakingTransaction", () => {
           network,
           feeRate,
           Buffer.from(
-            dataGenerator.generateRandomKeyPair(true).publicKey,
+            dataGenerator.generateRandomKeyPair().publicKeyNoCoord,
             "hex",
           ),
         )
@@ -278,7 +278,7 @@ describe("stakingTransaction", () => {
           network,
           feeRate,
           Buffer.from(
-            dataGenerator.generateRandomKeyPair(true).publicKey,
+            dataGenerator.generateRandomKeyPair().publicKeyNoCoord,
             "hex",
           ),
           lockHeight,

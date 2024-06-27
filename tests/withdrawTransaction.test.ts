@@ -1,241 +1,196 @@
+import { testingNetworks } from "./helper";
+import { PsbtTransactionResult } from "../src/types/transaction";
+import { TestingNetwork } from "./helper/testingNetworks";
+import { WithdrawTransactionTestData } from './types/withdrawTransaction'
 import {
   initBTCCurve,
+  stakingTransaction,
   withdrawEarlyUnbondedTransaction,
   withdrawTimelockUnbondedTransaction,
 } from "../src/index";
-import { testingNetworks } from "./helper";
-import { PsbtTransactionResult } from "../src/types/transaction";
 
-describe("stakingTransaction", () => {
+describe("withdrawTransaction", () => {
   beforeAll(() => {
     initBTCCurve();
   });
 
-  describe("Cross env error", () => {
-    const [mainnet, testnet] = testingNetworks;
-    const mainnetDataGenerator = mainnet.dataGenerator;
-    const testnetDataGenerator = testnet.dataGenerator;
+  const setupTestData = (network: TestingNetwork): WithdrawTransactionTestData => {
+    const dataGenerator = network.dataGenerator;
     const feeRate = 1;
-
-    it("should throw an error if the testnet inputs are used on mainnet", () => {
-      const randomWithdrawAddress = mainnetDataGenerator.getNativeSegwitAddress(
-        testnetDataGenerator.generateRandomKeyPair().publicKey,
-      );
-
-      const tx = mainnetDataGenerator.generateRandomTx().extractTransaction();
-
-      const {
-        timelockScript,
-        slashingScript,
-        unbondingScript,
-        unbondingTimelockScript,
-      } = mainnetDataGenerator.generateMockStakingScripts();
-
-      expect(() =>
-        withdrawEarlyUnbondedTransaction(
-          {
-            unbondingTimelockScript,
-            slashingScript,
-          },
-          tx,
-          randomWithdrawAddress,
-          mainnet.network,
-          feeRate,
-        ),
-      ).toThrow("Invalid withdrawal address");
-
-      expect(() =>
-        withdrawTimelockUnbondedTransaction(
-          {
-            timelockScript,
-            slashingScript,
-            unbondingScript,
-          },
-          tx,
-          randomWithdrawAddress,
-          mainnet.network,
-          feeRate,
-        ),
-      ).toThrow("Invalid withdrawal address");
-    });
-
-    it("should throw an error if the mainnet inputs are used on testnet", () => {
-      const randomWithdrawAddress = testnetDataGenerator.getNativeSegwitAddress(
-        mainnetDataGenerator.generateRandomKeyPair().publicKey,
-      );
-      const {
-        timelockScript,
-        slashingScript,
-        unbondingScript,
-        unbondingTimelockScript,
-      } = testnetDataGenerator.generateMockStakingScripts();
-
-      const tx = testnetDataGenerator.generateRandomTx().extractTransaction();
-
-      expect(() =>
-        withdrawEarlyUnbondedTransaction(
-          {
-            unbondingTimelockScript,
-            slashingScript,
-          },
-          tx,
-          randomWithdrawAddress,
-          testnet.network,
-          feeRate,
-        ),
-      ).toThrow("Invalid withdrawal address");
-
-      expect(() =>
-        withdrawTimelockUnbondedTransaction(
-          {
-            timelockScript,
-            slashingScript,
-            unbondingScript,
-          },
-          tx,
-          randomWithdrawAddress,
-          testnet.network,
-          feeRate,
-        ),
-      ).toThrow("Invalid withdrawal address");
-    });
-  });
-
-  testingNetworks.map(({ networkName, network, dataGenerator }) => {
-    const feeRate = 1;
-    const withdrawalAddress = dataGenerator.getNativeSegwitAddress(
-      dataGenerator.generateRandomKeyPair().publicKey,
-    );
+    const { keyPair, publicKey, publicKeyNoCoord } = dataGenerator.generateRandomKeyPair();
+    const address = dataGenerator.getNativeSegwitAddress(publicKey);
     const {
       timelockScript,
       slashingScript,
       unbondingScript,
       unbondingTimelockScript,
     } = dataGenerator.generateMockStakingScripts();
-    describe("Error path", () => {
-      it(`${networkName} - should throw an error if the fee rate is less than or equal to 0`, () => {
-        // Test case: fee rate is 0
-        expect(() =>
-          withdrawEarlyUnbondedTransaction(
-            {
-              unbondingTimelockScript,
-              slashingScript,
-            },
-            dataGenerator.generateRandomTx().extractTransaction(),
-            withdrawalAddress,
-            network,
-            0, // Invalid fee rate
-          ),
-        ).toThrow("Withdrawal feeRate must be bigger than 0");
 
-        expect(() =>
-          withdrawTimelockUnbondedTransaction(
-            {
-              timelockScript,
-              slashingScript,
-              unbondingScript,
-            },
-            dataGenerator.generateRandomTx().extractTransaction(),
-            withdrawalAddress,
-            network,
-            0, // Invalid fee rate
-          ),
-        ).toThrow("Withdrawal feeRate must be bigger than 0");
+    const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
+    const utxos = dataGenerator.generateRandomUTXOs(
+      Math.floor(Math.random() * 1000000) + randomAmount,
+      Math.floor(Math.random() * 10) + 1,
+      publicKey,
+    );
 
-        // Test case: fee rate is -1
-        expect(() =>
-          withdrawEarlyUnbondedTransaction(
-            {
-              unbondingTimelockScript,
-              slashingScript,
-            },
-            dataGenerator.generateRandomTx().extractTransaction(),
-            withdrawalAddress,
-            network,
-            0, // Invalid fee rate
-          ),
-        ).toThrow("Withdrawal feeRate must be bigger than 0");
+    const { psbt } = stakingTransaction(
+      { timelockScript, slashingScript, unbondingScript },
+      randomAmount,
+      address,
+      utxos,
+      network.network,
+      feeRate,
+    );
+    
+    psbt.signInput(0, keyPair);
 
-        expect(() =>
-          withdrawTimelockUnbondedTransaction(
-            {
-              timelockScript,
-              slashingScript,
-              unbondingScript,
-            },
-            dataGenerator.generateRandomTx().extractTransaction(),
-            withdrawalAddress,
-            network,
-            0, // Invalid fee rate
-          ),
-        ).toThrow("Withdrawal feeRate must be bigger than 0");
+    psbt.finalizeAllInputs();
+
+    const transaction = psbt.extractTransaction();
+
+    return {
+      feeRate,
+      keyPair,
+      publicKey,
+      publicKeyNoCoord,
+      address,
+      timelockScript,
+      slashingScript,
+      unbondingScript,
+      unbondingTimelockScript,
+      randomAmount,
+      utxos,
+      transaction,
+    };
+  };
+
+  testingNetworks.map(({ networkName, network, dataGenerator }) => {
+      let testData: WithdrawTransactionTestData;
+
+      beforeAll(() => {
+        testData = setupTestData({networkName, network, dataGenerator});
       });
 
-      it(`${networkName} - should throw an error if output index is invalid`, () => {
-        expect(() =>
-          withdrawEarlyUnbondedTransaction(
-            {
-              unbondingTimelockScript,
-              slashingScript,
-            },
-            dataGenerator.generateRandomTx().extractTransaction(),
-            withdrawalAddress,
-            network,
-            feeRate,
-            -1, // invalid output index
-          ),
-        ).toThrow("Output index must be bigger or equal to 0");
+      describe("Error path", () => {
+        it(`${networkName} - should throw an error if the fee rate is less than or equal to 0`, () => {
+          expect(() =>
+            withdrawEarlyUnbondedTransaction(
+              {
+                unbondingTimelockScript: testData.unbondingTimelockScript,
+                slashingScript: testData.slashingScript,
+              },
+              testData.transaction,
+              testData.address,
+              network,
+              0,
+            ),
+          ).toThrow("Withdrawal feeRate must be bigger than 0");
 
-        expect(() =>
-          withdrawTimelockUnbondedTransaction(
-            {
-              timelockScript,
-              slashingScript,
-              unbondingScript,
-            },
-            dataGenerator.generateRandomTx().extractTransaction(),
-            withdrawalAddress,
-            network,
-            feeRate,
-            -1, // invalid output index
-          ),
-        ).toThrow("Output index must be bigger or equal to 0");
+          expect(() =>
+            withdrawTimelockUnbondedTransaction(
+              {
+                timelockScript: testData.timelockScript,
+                slashingScript: testData.slashingScript,
+                unbondingScript: testData.unbondingScript,
+              },
+              testData.transaction,
+              testData.address,
+              network,
+              0,
+            ),
+          ).toThrow("Withdrawal feeRate must be bigger than 0");
+
+          expect(() =>
+            withdrawEarlyUnbondedTransaction(
+              {
+                unbondingTimelockScript: testData.unbondingTimelockScript,
+                slashingScript: testData.slashingScript,
+              },
+              testData.transaction,
+              testData.address,
+              network,
+              -1,
+            ),
+          ).toThrow("Withdrawal feeRate must be bigger than 0");
+
+          expect(() =>
+            withdrawTimelockUnbondedTransaction(
+              {
+                timelockScript: testData.timelockScript,
+                slashingScript: testData.slashingScript,
+                unbondingScript: testData.unbondingScript,
+              },
+              testData.transaction,
+              testData.address,
+              network,
+              -1,
+            ),
+          ).toThrow("Withdrawal feeRate must be bigger than 0");
+        });
+
+        it(`${networkName} - should throw an error if output index is invalid`, () => {
+          expect(() =>
+            withdrawEarlyUnbondedTransaction(
+              {
+                unbondingTimelockScript: testData.unbondingTimelockScript,
+                slashingScript: testData.slashingScript,
+              },
+              testData.transaction,
+              testData.address,
+              network,
+              testData.feeRate,
+              -1,
+            ),
+          ).toThrow("Output index must be bigger or equal to 0");
+
+          expect(() =>
+            withdrawTimelockUnbondedTransaction(
+              {
+                timelockScript: testData.timelockScript,
+                slashingScript: testData.slashingScript,
+                unbondingScript: testData.unbondingScript,
+              },
+              testData.transaction,
+              testData.address,
+              network,
+              testData.feeRate,
+              -1,
+            ),
+          ).toThrow("Output index must be bigger or equal to 0");
+        });
       });
 
       describe("Happy path", () => {
-        {
-          it(`${networkName} - should return a valid psbt result`, () => {
-            const psbtResult = withdrawEarlyUnbondedTransaction(
-              {
-                unbondingTimelockScript,
-                slashingScript,
-              },
-              dataGenerator.generateRandomTx().extractTransaction(),
-              withdrawalAddress,
-              network,
-              feeRate,
-            );
-            validateCommonFields(psbtResult, withdrawalAddress);
-          });
+        it(`${networkName} - should return a valid psbt result for early unbonded transaction`, () => {
+          const psbtResult = withdrawEarlyUnbondedTransaction(
+            {
+              unbondingTimelockScript: testData.unbondingTimelockScript,
+              slashingScript: testData.slashingScript,
+            },
+            testData.transaction,
+            testData.address,
+            network,
+            testData.feeRate,
+          );
+          validateCommonFields(psbtResult, testData.address);
+        });
 
-          it(`${networkName} - should return a valid psbt result`, () => {
-            const psbtResult = withdrawTimelockUnbondedTransaction(
-              {
-                timelockScript,
-                slashingScript,
-                unbondingScript,
-              },
-              dataGenerator.generateRandomTx().extractTransaction(),
-              withdrawalAddress,
-              network,
-              feeRate,
-            );
-            validateCommonFields(psbtResult, withdrawalAddress);
-          });
-        }
+        it(`${networkName} - should return a valid psbt result for timelock unbonded transaction`, () => {
+          const psbtResult = withdrawTimelockUnbondedTransaction(
+            {
+              timelockScript: testData.timelockScript,
+              slashingScript: testData.slashingScript,
+              unbondingScript: testData.unbondingScript,
+            },
+            testData.transaction,
+            testData.address,
+            network,
+            testData.feeRate,
+          );
+          validateCommonFields(psbtResult, testData.address);
+        });
       });
-    });
-  });
+ });
 });
 
 const validateCommonFields = (
@@ -243,7 +198,6 @@ const validateCommonFields = (
   withdrawalAddress: string,
 ) => {
   expect(psbtResult).toBeDefined();
-  // make sure the input amount is greater than the output amount
   const { psbt, fee } = psbtResult;
   const inputAmount = psbt.data.inputs.reduce(
     (sum, input) => sum + input.witnessUtxo!.value,
@@ -255,7 +209,6 @@ const validateCommonFields = (
   );
   expect(inputAmount).toBeGreaterThan(outputAmount);
   expect(inputAmount - outputAmount).toEqual(fee);
-  // check the withdrawal is sent to the withdrawal address
   expect(
     psbt.txOutputs.find((output) => output.address === withdrawalAddress),
   ).toBeDefined();

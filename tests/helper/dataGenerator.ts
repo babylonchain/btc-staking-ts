@@ -22,7 +22,7 @@ class DataGenerator {
     return randomBuffer.toString("hex");
   };
 
-  generateRandomKeyPair = (isNoCoordPk = false) => {
+  generateRandomKeyPair = () => {
     const keyPair = ECPair.makeRandom({ network: this.network });
     const { privateKey, publicKey } = keyPair;
     if (!privateKey || !publicKey) {
@@ -30,16 +30,16 @@ class DataGenerator {
     }
     let pk = publicKey.toString("hex");
 
-    pk = isNoCoordPk ? pk.slice(2) : pk;
+    pk = pk.slice(2);
 
     return {
       privateKey: privateKey.toString("hex"),
-      publicKey: pk,
+      publicKey: publicKey.toString("hex"),
+      publicKeyNoCoord: pk,
+      keyPair,
     };
   };
 
-  // Generate a random staking term (number of blocks to stake)
-  // ranged from 1 to 65535
   generateRandomStakingTerm = () => {
     return Math.floor(Math.random() * 65535) + 1;
   };
@@ -52,12 +52,11 @@ class DataGenerator {
     return Math.floor(Math.random() * 1000) + 1;
   };
 
-  // Convenant committee are a list of public keys that are used to sign a covenant
   generateRandomCovenantCommittee = (size: number): Buffer[] => {
     const committe: Buffer[] = [];
     for (let i = 0; i < size; i++) {
-      const keyPair = this.generateRandomKeyPair(true);
-      committe.push(Buffer.from(keyPair.publicKey, "hex"));
+      const keyPair = this.generateRandomKeyPair();
+      committe.push(Buffer.from(keyPair.publicKeyNoCoord, "hex"));
     }
     return committe;
   };
@@ -86,7 +85,6 @@ class DataGenerator {
   };
 
   getTaprootAddress = (publicKey: string) => {
-    // Remove the prefix if it exists
     if (publicKey.length == 66) {
       publicKey = publicKey.slice(2);
     }
@@ -120,9 +118,9 @@ class DataGenerator {
   };
 
   generateMockStakingScripts = (): StakingScripts => {
-    const finalityProviderPk = this.generateRandomKeyPair(true).publicKey;
+    const finalityProviderPk = this.generateRandomKeyPair().publicKeyNoCoord;
     const stakingTxTimelock = this.generateRandomStakingTerm();
-    const publicKeyNoCoord = this.generateRandomKeyPair(true).publicKey;
+    const publicKeyNoCoord = this.generateRandomKeyPair().publicKeyNoCoord;
     const committeeSize = Math.floor(Math.random() * 10) + 1;
     const globalParams = this.generateRandomGlobalParams(
       stakingTxTimelock,
@@ -150,7 +148,6 @@ class DataGenerator {
       throw new Error(error?.message || "Cannot build staking script data");
     }
 
-    // Build scripts
     let scripts;
     try {
       scripts = stakingScriptData.buildScripts();
@@ -164,14 +161,20 @@ class DataGenerator {
   generateRandomUTXOs = (
     minAvailableBalance: number,
     numberOfUTXOs: number,
+    publicKey?: string,
   ): UTXO[] => {
     const utxos = [];
     let sum = 0;
     for (let i = 0; i < numberOfUTXOs; i++) {
+      const keyPair = publicKey ? { publicKey } : this.generateRandomKeyPair();
+      const payment = bitcoin.payments.p2wpkh({
+        pubkey: Buffer.from(keyPair.publicKey, "hex"),
+        network: this.network,
+      });
       utxos.push({
         txid: this.generateRandomTxId(),
         vout: Math.floor(Math.random() * 10),
-        scriptPubKey: this.generateRandomKeyPair().publicKey,
+        scriptPubKey: payment.output!.toString("hex"),
         value: Math.floor(Math.random() * 9000) + minAvailableBalance,
       });
       sum += utxos[i].value;
