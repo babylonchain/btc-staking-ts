@@ -1,7 +1,7 @@
 import * as bitcoin from "bitcoinjs-lib";
 import DataGenerator from "./dataGenerator";
 
-interface NetworkConfig {
+export interface NetworkConfig {
   networkName: string;
   network: bitcoin.Network;
   dataGenerator: DataGenerator;

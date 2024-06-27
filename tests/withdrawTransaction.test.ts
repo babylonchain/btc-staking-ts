@@ -1,71 +1,55 @@
+import { Transaction } from "bitcoinjs-lib";
 import { testingNetworks } from "./helper";
+import { NetworkConfig } from "./helper/testingNetworks";
 import { PsbtTransactionResult } from "../src/types/transaction";
-import { TestingNetwork } from "./helper/testingNetworks";
-import { WithdrawTransactionTestData } from './types/withdrawTransaction'
 import {
   initBTCCurve,
-  stakingTransaction,
   withdrawEarlyUnbondedTransaction,
   withdrawTimelockUnbondedTransaction,
 } from "../src/index";
+import { KeyPair } from "./helper/dataGenerator";
+import { StakingScripts } from "../src/types/StakingScripts";
+
+interface WithdrawTransactionTestData {
+  feeRate: number;
+  keyPair: KeyPair;
+  address: string;
+  stakingScripts: StakingScripts,
+  transaction: Transaction;
+}
 
 describe("withdrawTransaction", () => {
   beforeAll(() => {
     initBTCCurve();
   });
 
-  const setupTestData = (network: TestingNetwork): WithdrawTransactionTestData => {
-    const dataGenerator = network.dataGenerator;
+  
+  const setupTestData = (network: NetworkConfig): WithdrawTransactionTestData => {
     const feeRate = 1;
-    const { keyPair, publicKey, publicKeyNoCoord } = dataGenerator.generateRandomKeyPair();
-    const address = dataGenerator.getNativeSegwitAddress(publicKey);
-    const {
-      timelockScript,
-      slashingScript,
-      unbondingScript,
-      unbondingTimelockScript,
-    } = dataGenerator.generateMockStakingScripts();
-
-    const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
-    const utxos = dataGenerator.generateRandomUTXOs(
-      Math.floor(Math.random() * 1000000) + randomAmount,
-      Math.floor(Math.random() * 10) + 1,
-      publicKey,
-    );
-
-    const { psbt } = stakingTransaction(
-      { timelockScript, slashingScript, unbondingScript },
-      randomAmount,
-      address,
-      utxos,
+    const dataGenerator = network.dataGenerator;
+    const keyPair = dataGenerator.generateRandomKeyPair();
+    const address = dataGenerator.getNativeSegwitAddress(keyPair.publicKey);
+    const stakingScripts = dataGenerator.generateMockStakingScripts();
+    const transaction = dataGenerator.generateRandomStakingTransaction(
       network.network,
       feeRate,
-    );
-    
-    psbt.signInput(0, keyPair);
-
-    psbt.finalizeAllInputs();
-
-    const transaction = psbt.extractTransaction();
+      keyPair,
+      address,
+      stakingScripts
+    )
 
     return {
       feeRate,
       keyPair,
-      publicKey,
-      publicKeyNoCoord,
       address,
-      timelockScript,
-      slashingScript,
-      unbondingScript,
-      unbondingTimelockScript,
-      randomAmount,
-      utxos,
+      stakingScripts,
       transaction,
     };
   };
 
   testingNetworks.map(({ networkName, network, dataGenerator }) => {
-      let testData: WithdrawTransactionTestData;
+    let testData: WithdrawTransactionTestData;
+    
 
       beforeAll(() => {
         testData = setupTestData({networkName, network, dataGenerator});
@@ -76,8 +60,8 @@ describe("withdrawTransaction", () => {
           expect(() =>
             withdrawEarlyUnbondedTransaction(
               {
-                unbondingTimelockScript: testData.unbondingTimelockScript,
-                slashingScript: testData.slashingScript,
+                unbondingTimelockScript: testData.stakingScripts.unbondingTimelockScript,
+                slashingScript: testData.stakingScripts.slashingScript,
               },
               testData.transaction,
               testData.address,
@@ -89,9 +73,9 @@ describe("withdrawTransaction", () => {
           expect(() =>
             withdrawTimelockUnbondedTransaction(
               {
-                timelockScript: testData.timelockScript,
-                slashingScript: testData.slashingScript,
-                unbondingScript: testData.unbondingScript,
+                timelockScript: testData.stakingScripts.timelockScript,
+                slashingScript: testData.stakingScripts.slashingScript,
+                unbondingScript: testData.stakingScripts.unbondingScript,
               },
               testData.transaction,
               testData.address,
@@ -103,8 +87,8 @@ describe("withdrawTransaction", () => {
           expect(() =>
             withdrawEarlyUnbondedTransaction(
               {
-                unbondingTimelockScript: testData.unbondingTimelockScript,
-                slashingScript: testData.slashingScript,
+                unbondingTimelockScript: testData.stakingScripts.unbondingTimelockScript,
+                slashingScript: testData.stakingScripts.slashingScript,
               },
               testData.transaction,
               testData.address,
@@ -116,9 +100,9 @@ describe("withdrawTransaction", () => {
           expect(() =>
             withdrawTimelockUnbondedTransaction(
               {
-                timelockScript: testData.timelockScript,
-                slashingScript: testData.slashingScript,
-                unbondingScript: testData.unbondingScript,
+                timelockScript: testData.stakingScripts.timelockScript,
+                slashingScript: testData.stakingScripts.slashingScript,
+                unbondingScript: testData.stakingScripts.unbondingScript,
               },
               testData.transaction,
               testData.address,
@@ -132,8 +116,8 @@ describe("withdrawTransaction", () => {
           expect(() =>
             withdrawEarlyUnbondedTransaction(
               {
-                unbondingTimelockScript: testData.unbondingTimelockScript,
-                slashingScript: testData.slashingScript,
+                unbondingTimelockScript: testData.stakingScripts.unbondingTimelockScript,
+                slashingScript: testData.stakingScripts.slashingScript,
               },
               testData.transaction,
               testData.address,
@@ -146,9 +130,9 @@ describe("withdrawTransaction", () => {
           expect(() =>
             withdrawTimelockUnbondedTransaction(
               {
-                timelockScript: testData.timelockScript,
-                slashingScript: testData.slashingScript,
-                unbondingScript: testData.unbondingScript,
+                timelockScript: testData.stakingScripts.timelockScript,
+                slashingScript: testData.stakingScripts.slashingScript,
+                unbondingScript: testData.stakingScripts.unbondingScript,
               },
               testData.transaction,
               testData.address,
@@ -164,8 +148,8 @@ describe("withdrawTransaction", () => {
         it(`${networkName} - should return a valid psbt result for early unbonded transaction`, () => {
           const psbtResult = withdrawEarlyUnbondedTransaction(
             {
-              unbondingTimelockScript: testData.unbondingTimelockScript,
-              slashingScript: testData.slashingScript,
+              unbondingTimelockScript: testData.stakingScripts.unbondingTimelockScript,
+              slashingScript: testData.stakingScripts.slashingScript,
             },
             testData.transaction,
             testData.address,
@@ -178,9 +162,9 @@ describe("withdrawTransaction", () => {
         it(`${networkName} - should return a valid psbt result for timelock unbonded transaction`, () => {
           const psbtResult = withdrawTimelockUnbondedTransaction(
             {
-              timelockScript: testData.timelockScript,
-              slashingScript: testData.slashingScript,
-              unbondingScript: testData.unbondingScript,
+              timelockScript: testData.stakingScripts.timelockScript,
+              slashingScript: testData.stakingScripts.slashingScript,
+              unbondingScript: testData.stakingScripts.unbondingScript,
             },
             testData.transaction,
             testData.address,

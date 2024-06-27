@@ -1,11 +1,18 @@
-import ECPairFactory from "ecpair";
+import ECPairFactory, { ECPairInterface } from "ecpair";
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from 'bitcoinjs-lib';
 import { StakingScripts } from "../../src/types/StakingScripts";
-import { StakingScriptData } from "../../src";
+import { StakingScriptData, stakingTransaction } from "../../src";
 import { UTXO } from "../../src/types/UTXO";
 
 const ECPair = ECPairFactory(ecc);
+
+export interface KeyPair {
+  privateKey: string,
+  publicKey: string,
+  publicKeyNoCoord: string,
+  keyPair: ECPairInterface,
+}
 
 class DataGenerator {
   private network: bitcoin.networks.Network;
@@ -22,7 +29,7 @@ class DataGenerator {
     return randomBuffer.toString("hex");
   };
 
-  generateRandomKeyPair = () => {
+  generateRandomKeyPair = (): KeyPair => {
     const keyPair = ECPair.makeRandom({ network: this.network });
     const { privateKey, publicKey } = keyPair;
     if (!privateKey || !publicKey) {
@@ -184,6 +191,37 @@ class DataGenerator {
     }
     return utxos;
   };
+
+  generateRandomStakingTransaction = (
+  network: bitcoin.Network,
+    feeRate: number,
+    keyPair: KeyPair,
+    address: string,
+  stakingScripts: StakingScripts
+  ) => {
+  const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
+  const utxos = this.generateRandomUTXOs(
+    Math.floor(Math.random() * 1000000) + randomAmount,
+    Math.floor(Math.random() * 10) + 1,
+    keyPair.publicKey,
+  );
+  const { timelockScript, slashingScript, unbondingScript } = stakingScripts;
+  const { psbt } = stakingTransaction(
+    { timelockScript, slashingScript, unbondingScript },
+    randomAmount,
+    address,
+    utxos,
+    network,
+    feeRate,
+  );
+  
+  psbt.signInput(0, keyPair.keyPair);
+  psbt.finalizeAllInputs();
+
+  const transaction = psbt.extractTransaction();
+
+  return transaction;
+};
 }
 
 export default DataGenerator;
