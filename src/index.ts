@@ -331,20 +331,19 @@ function withdrawalTransaction(
     sequence: timelock,
   });
 
-  const outputValue = tx.outs[outputIndex].value;
-  if (outputValue < BTC_DUST_SAT) {
-    throw new Error("Output value is less than dust limit");
-  }
   const estimatedFee = getWithdrawTxFee(feeRate);
-  const value = tx.outs[outputIndex].value - estimatedFee;
-  if (!value) {
+  const outputValue = tx.outs[outputIndex].value - estimatedFee;
+  if (outputValue < 0) {
     throw new Error(
       "Not enough funds to cover the fee for withdrawal transaction",
     );
   }
+  if (outputValue < BTC_DUST_SAT) {
+    throw new Error("Output value is less than dust limit");
+  }
   psbt.addOutput({
     address: withdrawalAddress,
-    value,
+    value: outputValue,
   });
 
   return {
@@ -680,16 +679,19 @@ export function unbondingTransaction(
     scriptTree: outputScriptTree,
     network,
   });
-  const value = stakingTx.outs[outputIndex].value - transactionFee;
-  if (!value) {
+  const outputValue = stakingTx.outs[outputIndex].value - transactionFee;
+  if (outputValue < 0) {
     throw new Error(
       "Not enough funds to cover the fee for unbonding transaction",
     );
   }
+  if (outputValue < BTC_DUST_SAT) {
+    throw new Error("Output value is less than dust limit");
+  }
   // Add the unbonding output
   psbt.addOutput({
     address: unbondingOutput.address!,
-    value: stakingTx.outs[outputIndex].value - transactionFee,
+    value: outputValue,
   });
 
   return {
