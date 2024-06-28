@@ -1,11 +1,15 @@
-import ECPairFactory from "ecpair";
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
-import * as bitcoin from 'bitcoinjs-lib';
-import { StakingScripts } from "../../src/types/StakingScripts";
+import * as bitcoin from "bitcoinjs-lib";
+import ECPairFactory from "ecpair";
 import { StakingScriptData } from "../../src";
+import { StakingScripts } from "../../src/types/StakingScripts";
 import { UTXO } from "../../src/types/UTXO";
+import { generateRandomAmountSlices } from "./math";
 
+bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
+
+export const DEFAULT_TEST_FEE_RATE = 15;
 
 export class DataGenerator {
   private network: bitcoin.networks.Network;
@@ -85,34 +89,11 @@ export class DataGenerator {
     };
   };
 
-  getTaprootAddress = (publicKey: string) => {
-    // Remove the prefix if it exists
-    if (publicKey.length == 66) {
-      publicKey = publicKey.slice(2);
-    }
-    const internalPubkey = Buffer.from(publicKey, "hex");
-    const { address } = bitcoin.payments.p2tr({
-      internalPubkey,
-      network: this.network,
-    });
-    if (!address) {
-      throw new Error("Failed to generate taproot address from public key");
-    }
-    return address;
-  };
-
-  getNativeSegwitAddress = (publicKey: string) => {
-    const internalPubkey = Buffer.from(publicKey, "hex");
-    const { address } = bitcoin.payments.p2wpkh({
-      pubkey: internalPubkey,
-      network: this.network,
-    });
-    if (!address) {
-      throw new Error(
-        "Failed to generate native segwit address from public key",
-      );
-    }
-    return address;
+  getAddressAndScriptPubKey = (publicKey: string) => {
+    return {
+      taproot: this.getTaprootAddress(publicKey),
+      nativeSegwit: this.getNativeSegwitAddress(publicKey),
+    };
   };
 
   getNetwork = () => {
@@ -162,23 +143,78 @@ export class DataGenerator {
   };
 
   generateRandomUTXOs = (
-    minAvailableBalance: number,
+    balance: number,
     numberOfUTXOs: number,
   ): UTXO[] => {
-    const utxos = [];
-    let sum = 0;
-    for (let i = 0; i < numberOfUTXOs; i++) {
-      utxos.push({
+    const slices = generateRandomAmountSlices(balance, numberOfUTXOs);
+    return slices.map((v) => {
+      const { taproot, nativeSegwit } = this.getAddressAndScriptPubKey(
+        this.generateRandomKeyPair().publicKey,
+      );
+      // Randomly select either taproot or nativeSegwit for scriptPubKey
+      const selectedScriptPubKey =
+        Math.random() < 0.5 ? taproot.scriptPubKey : nativeSegwit.scriptPubKey;
+      return {
         txid: this.generateRandomTxId(),
         vout: Math.floor(Math.random() * 10),
-        scriptPubKey: this.generateRandomKeyPair().publicKey,
-        value: Math.floor(Math.random() * 9000) + minAvailableBalance,
-      });
-      sum += utxos[i].value;
-      if (sum >= minAvailableBalance) {
-        break;
-      }
+        scriptPubKey: selectedScriptPubKey,
+        value: v,
+      };
+    });
+  };
+
+  private getTaprootAddress = (publicKey: string) => {
+    // Remove the prefix if it exists
+    if (publicKey.length == 66) {
+      publicKey = publicKey.slice(2);
     }
-    return utxos;
+    const internalPubkey = Buffer.from(publicKey, "hex");
+    const { address, output: scriptPubKey } = bitcoin.payments.p2tr({
+      internalPubkey,
+      network: this.network,
+    });
+    if (!address || !scriptPubKey) {
+      throw new Error(
+        "Failed to generate taproot address or script from public key",
+      );
+    }
+    return {
+      address,
+      scriptPubKey: scriptPubKey.toString("hex"),
+    };
+  };
+
+  private getNativeSegwitAddress = (publicKey: string) => {
+    // check the public key length is 66, otherwise throw
+    if (publicKey.length !== 66) {
+      throw new Error("Invalid public key length for generating native segwit address");
+    }
+    const internalPubkey = Buffer.from(publicKey, "hex");
+    const { address, output: scriptPubKey } = bitcoin.payments.p2wpkh({
+      pubkey: internalPubkey,
+      network: this.network,
+    });
+    if (!address || !scriptPubKey) {
+      throw new Error(
+        "Failed to generate native segwit address or script from public key",
+      );
+    }
+    return {
+      address,
+      scriptPubKey: scriptPubKey.toString("hex"),
+    };
   };
 }
+
+export const testingNetworks = [
+  {
+    networkName: "mainnet",
+    network: bitcoin.networks.bitcoin,
+    dataGenerator: new DataGenerator(bitcoin.networks.bitcoin),
+  },
+  {
+    networkName: "testnet",
+    network: bitcoin.networks.testnet,
+    dataGenerator: new DataGenerator(bitcoin.networks.testnet),
+  },
+];

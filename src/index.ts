@@ -7,11 +7,9 @@ import { UTXO } from "./types/UTXO";
 import { PsbtTransactionResult } from "./types/transaction";
 import { isValidBitcoinAddress } from "./utils/address";
 import { initBTCCurve } from "./utils/curve";
-import {
-  getEstimatedFee,
-  getStakingTxInputUTXOsAndFees,
-  inputValueSum,
-} from "./utils/fee";
+import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "./utils/fee";
+import { inputValueSum } from "./utils/fee/utils";
+import { buildStakingOutput } from "./utils/staking";
 import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
 
 export { StakingScriptData, initBTCCurve };
@@ -84,14 +82,14 @@ export function stakingTransaction(
     throw new Error("Invalid public key");
   }
 
-  // Calculate the number of outputs based on the presence of the data embed script
-  // We have 2 outputs by default: staking output and change output
-  const numOutputs = scripts.dataEmbedScript ? 3 : 2;
+  // Build outputs and estimate the fee
+  const psbtOutputs = buildStakingOutput(scripts, network, amount);
   const { selectedUTXOs, fee } = getStakingTxInputUTXOsAndFees(
+    network,
     inputUTXOs,
     amount,
     feeRate,
-    numOutputs,
+    psbtOutputs,
   );
 
   // Create a partially signed transaction
@@ -112,33 +110,8 @@ export function stakingTransaction(
     });
   }
 
-  const scriptTree: Taptree = [
-    {
-      output: scripts.slashingScript,
-    },
-    [{ output: scripts.unbondingScript }, { output: scripts.timelockScript }],
-  ];
-
-  // Create an pay-2-taproot (p2tr) output using the staking script
-  const stakingOutput = payments.p2tr({
-    internalPubkey,
-    scriptTree,
-    network,
-  });
-
   // Add the staking output to the transaction
-  psbt.addOutput({
-    address: stakingOutput.address!,
-    value: amount,
-  });
-
-  if (scripts.dataEmbedScript) {
-    // Add the data embed output to the transaction
-    psbt.addOutput({
-      script: scripts.dataEmbedScript,
-      value: 0,
-    });
-  }
+  psbt.addOutputs(psbtOutputs);
 
   // Add a change output only if there's any amount leftover from the inputs
   const inputsSum = inputValueSum(selectedUTXOs);
@@ -362,8 +335,7 @@ function withdrawalTransaction(
   if (outputValue < BTC_DUST_SAT) {
     throw new Error("Output value is less than dust limit");
   }
-  // withdraw tx always has 1 output only
-  const estimatedFee = getEstimatedFee(feeRate, psbt.txInputs.length, 1);
+  const estimatedFee = getWithdrawTxFee(feeRate);
   const value = tx.outs[outputIndex].value - estimatedFee;
   if (!value) {
     throw new Error(
