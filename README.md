@@ -1,5 +1,5 @@
 <p align="center">
-    <img alt="Babylon Logo" src="assets/logo-circle.png" width="100" />
+    <img alt="Babylon Logo" src="https://github.com/babylonchain/btc-staking-ts/assets/11439706/2a9c2b73-6ed8-46f7-b1ec-b3a3ea744bb0" width="100" />
     <h3 align="center">btc-staking-ts</h3>
     <p align="center">Babylon Bitcoin Staking Protocol</p>
     <p align="center"><strong>TypeScript</strong> library</p>
