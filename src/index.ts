@@ -476,7 +476,6 @@ export function slashTimelockUnbondedTransaction(
  * @param {number} slashingRate - The rate at which the funds are slashed.
  * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
  * @param {networks.Network} network - The Bitcoin network.
- * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
  * @returns {{ psbt: Psbt }} An object containing the partially signed transaction (PSBT).
  */
 export function slashEarlyUnbondedTransaction(
@@ -489,7 +488,6 @@ export function slashEarlyUnbondedTransaction(
   slashingRate: number,
   minimumFee: number,
   network: networks.Network,
-  outputIndex: number = 0,
 ): { psbt: Psbt } {
   const unbondingScriptTree: Taptree = [
     {
@@ -510,7 +508,7 @@ export function slashEarlyUnbondedTransaction(
     slashingRate,
     minimumFee,
     network,
-    outputIndex,
+    0, // unbonding always has a single output
   );
 }
 
