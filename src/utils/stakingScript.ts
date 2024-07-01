@@ -4,6 +4,7 @@ import { StakingScripts } from "../types/StakingScripts";
 
 // PK_LENGTH denotes the length of a public key in bytes
 export const PK_LENGTH = 32;
+export const MAGIC_BYTES_LEN = 4;
 
 // StakingScriptData is a class that holds the data required for the BTC Staking Script
 // and exposes methods for converting it into useful formats
@@ -90,10 +91,35 @@ export class StakingScriptData {
     ) {
       return false;
     }
-    // check that maximum value for staking time is not greater than uint16
-    if (this.#stakingTimeLock > 65535) {
+
+    // Check whether we have any duplicate keys
+    const allPks = [this.#stakerKey, ...this.#finalityProviderKeys, ...this.#covenantKeys];
+    const allPksSet = new Set(allPks);
+    if (allPks.length !== allPksSet.size) {
+        return false;
+    }
+
+    // check that the threshold is above 0 and less than or equal to
+    // the size of the covenant emulators set
+    if (this.#covenantThreshold == 0 || this.#covenantThreshold > this.#covenantKeys.length) {
+        return false;
+    }
+
+    // check that maximum value for staking time is not greater than uint16 and above 0
+    if (this.#stakingTimeLock == 0 || this.#stakingTimeLock > 65535) {
       return false;
     }
+
+    // check that maximum value for unbonding time is not greater than uint16 and above 0
+    if (this.#unbondingTimeLock == 0 || this.#unbondingTimeLock > 65535) {
+      return false;
+    }
+
+    // check that the magic bytes are 4 in length
+    if (this.#magicBytes.length != MAGIC_BYTES_LEN) {
+        return false;
+    }
+
     return true;
   }
 

@@ -14,7 +14,7 @@ interface WithdrawTransactionTestData {
   keyPair: KeyPair;
   address: string;
   stakingScripts: StakingScripts;
-  signedPsbt: Transaction;
+  stakingTx: Transaction;
 }
 
 describe("withdrawTransaction", () => {
@@ -26,24 +26,20 @@ describe("withdrawTransaction", () => {
     network: NetworkConfig,
   ): WithdrawTransactionTestData => {
     const dataGenerator = network.dataGenerator;
-    const keyPair = dataGenerator.generateRandomKeyPair();
-    const address = dataGenerator.getNativeSegwitAddress(
-      keyPair.publicKey,
-    ).address;
+    const stakerKeyPair = dataGenerator.generateRandomKeyPair();
+
+    const address = dataGenerator.getAddressAndScriptPubKey(stakerKeyPair.publicKey).nativeSegwit.address;
     const stakingScripts = dataGenerator.generateMockStakingScripts();
-    const signedPsbt = dataGenerator.generateRandomStakingTransaction(
-      network.network,
+    const stakingTx = dataGenerator.generateRandomStakingTransaction(
       DEFAULT_TEST_FEE_RATE,
-      keyPair,
-      address,
-      stakingScripts,
+      stakerKeyPair,
     );
 
     return {
-      keyPair,
+      keyPair: stakerKeyPair,
       address,
       stakingScripts,
-      signedPsbt,
+      stakingTx,
     };
   };
 
@@ -63,7 +59,7 @@ describe("withdrawTransaction", () => {
                 testData.stakingScripts.unbondingTimelockScript,
               slashingScript: testData.stakingScripts.slashingScript,
             },
-            testData.signedPsbt,
+            testData.stakingTx,
             testData.address,
             network,
             0,
@@ -77,7 +73,7 @@ describe("withdrawTransaction", () => {
               slashingScript: testData.stakingScripts.slashingScript,
               unbondingScript: testData.stakingScripts.unbondingScript,
             },
-            testData.signedPsbt,
+            testData.stakingTx,
             testData.address,
             network,
             0,
@@ -91,7 +87,7 @@ describe("withdrawTransaction", () => {
                 testData.stakingScripts.unbondingTimelockScript,
               slashingScript: testData.stakingScripts.slashingScript,
             },
-            testData.signedPsbt,
+            testData.stakingTx,
             testData.address,
             network,
             -1,
@@ -105,7 +101,7 @@ describe("withdrawTransaction", () => {
               slashingScript: testData.stakingScripts.slashingScript,
               unbondingScript: testData.stakingScripts.unbondingScript,
             },
-            testData.signedPsbt,
+            testData.stakingTx,
             testData.address,
             network,
             -1,
@@ -121,7 +117,7 @@ describe("withdrawTransaction", () => {
                 testData.stakingScripts.unbondingTimelockScript,
               slashingScript: testData.stakingScripts.slashingScript,
             },
-            testData.signedPsbt,
+            testData.stakingTx,
             testData.address,
             network,
             DEFAULT_TEST_FEE_RATE,
@@ -136,7 +132,7 @@ describe("withdrawTransaction", () => {
               slashingScript: testData.stakingScripts.slashingScript,
               unbondingScript: testData.stakingScripts.unbondingScript,
             },
-            testData.signedPsbt,
+            testData.stakingTx,
             testData.address,
             network,
             DEFAULT_TEST_FEE_RATE,
@@ -144,7 +140,6 @@ describe("withdrawTransaction", () => {
           ),
         ).toThrow("Output index must be bigger or equal to 0");
       });
-    });
 
     describe("Happy path", () => {
       it(`${networkName} - should return a valid psbt result for early unbonded transaction`, () => {
@@ -154,7 +149,7 @@ describe("withdrawTransaction", () => {
               testData.stakingScripts.unbondingTimelockScript,
             slashingScript: testData.stakingScripts.slashingScript,
           },
-          testData.signedPsbt,
+          testData.stakingTx,
           testData.address,
           network,
           DEFAULT_TEST_FEE_RATE,
@@ -169,7 +164,7 @@ describe("withdrawTransaction", () => {
             slashingScript: testData.stakingScripts.slashingScript,
             unbondingScript: testData.stakingScripts.unbondingScript,
           },
-          testData.signedPsbt,
+          testData.stakingTx,
           testData.address,
           network,
           DEFAULT_TEST_FEE_RATE,
@@ -177,6 +172,7 @@ describe("withdrawTransaction", () => {
         validateCommonFields(psbtResult, testData.address);
       });
     });
+  });
   });
 });
 
