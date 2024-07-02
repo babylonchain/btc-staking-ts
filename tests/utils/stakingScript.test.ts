@@ -8,7 +8,6 @@ describe("stakingScript", () => {
     const pk4 = Buffer.from("76d1ae01f8fb6bf30108731c884cddcf57ef6eef2d9d9559e130894e0e40c62c", "hex");
     const pk5 = Buffer.from("49766ccd9e3cd94343e2040474a77fb37cdfd30530d05f9f1e96ae1e2102c86e", "hex");
     const invalidPk = Buffer.from("6f13a6d104446520d1757caec13eaf6fbcf29f488c31e0107e7351d4994cd0", "hex");
-    const emptyBuffer = Buffer.from("", "hex");
     const stakingTimeLock = 65535;
     const unbondingTimeLock = 1000;
     const magicBytes = Buffer.from("62626234", "hex");
