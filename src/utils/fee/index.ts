@@ -3,6 +3,8 @@ import { BTC_DUST_SAT } from "../../constants/dustSat";
 import {
   LOW_RATE_ESTIMATION_ACCURACY_BUFFER,
   MAX_NON_LEGACY_OUTPUT_SIZE,
+  OP_RETURN_OUTPUT_VALUE_SIZE,
+  OP_RETURN_VALUE_SERIALIZE_SIZE,
   P2TR_INPUT_SIZE,
   TX_BUFFER_SIZE_OVERHEAD,
   WALLET_RELAY_FEE_RATE_THRESHOLD,
@@ -141,7 +143,7 @@ const getEstimatedSize = (
       ? address.toOutputScript(output.address, network)
       : output.script;
     if (isOP_RETURN(script)) {
-      return acc + script.length;
+      return acc + script.length + OP_RETURN_OUTPUT_VALUE_SIZE + OP_RETURN_VALUE_SERIALIZE_SIZE;
     }
     return acc + MAX_NON_LEGACY_OUTPUT_SIZE;
   }, 0);
