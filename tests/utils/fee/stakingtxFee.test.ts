@@ -96,7 +96,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
         1,
         outputs,
       );
-      expect(result.fee).toBe(316); // This number is calculated manually
+      expect(result.fee).toBe(325); // This number is calculated manually
       expect(result.selectedUTXOs.length).toEqual(2);
 
       result = getStakingTxInputUTXOsAndFees(
@@ -106,7 +106,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
         2,
         outputs,
       );
-      expect(result.fee).toBe(516); // This number is calculated manually
+      expect(result.fee).toBe(534); // This number is calculated manually
       expect(result.selectedUTXOs.length).toEqual(2);
 
       // Once fee rate is set to 3, the fee will be calculated with addition of TX_BUFFER_SIZE_OVERHEAD * feeRate
@@ -117,7 +117,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
         3,
         outputs,
       );
-      expect(result.fee).toBe(729); // This number is calculated manually
+      expect(result.fee).toBe(756); // This number is calculated manually
       expect(result.selectedUTXOs.length).toEqual(2);
     });
 
@@ -149,7 +149,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
         1,
         outputs,
       );
-      expect(result.fee).toBe(336); // This number is calculated manually
+      expect(result.fee).toBe(345); // This number is calculated manually
       expect(result.selectedUTXOs.length).toEqual(2);
     });
 
@@ -163,7 +163,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
           txid: dataGenerator.generateRandomTxId(),
           vout: Math.floor(Math.random() * 10),
           scriptPubKey: nativeSegwit.scriptPubKey,
-          value: 1000,
+          value: 1009,
         },
         {
           txid: dataGenerator.generateRandomTxId(),
@@ -181,7 +181,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
         1,
         outputs,
       );
-      expect(result.fee).toBe(293); // This is the fee for 2 inputs and 2 outputs without change
+      expect(result.fee).toBe(302); // This is the fee for 2 inputs and 2 outputs without change
       expect(result.selectedUTXOs.length).toEqual(2);
     });
 
@@ -213,7 +213,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
         1,
         outputs,
       );
-      expect(result.fee).toBe(225);
+      expect(result.fee).toBe(234);
       expect(result.selectedUTXOs.length).toEqual(1);
     });
   });
