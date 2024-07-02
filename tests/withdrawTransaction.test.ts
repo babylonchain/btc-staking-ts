@@ -29,9 +29,8 @@ describe("withdrawTransaction", () => {
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
 
     const address = dataGenerator.getAddressAndScriptPubKey(stakerKeyPair.publicKey).nativeSegwit.address;
-    const stakingScripts = dataGenerator.generateMockStakingScripts();
+    const stakingScripts = dataGenerator.generateMockStakingScripts(stakerKeyPair);
     const stakingTx = dataGenerator.generateRandomStakingTransaction(
-      DEFAULT_TEST_FEE_RATE,
       stakerKeyPair,
     );
 
