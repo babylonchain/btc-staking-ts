@@ -14,3 +14,8 @@ export const MAX_NON_LEGACY_OUTPUT_SIZE = 43;
 export const WITHDRAW_TX_BUFFER_SIZE = 17;
 // Threshold for wallet relay fee rate. Different buffer fees are used based on this threshold
 export const WALLET_RELAY_FEE_RATE_THRESHOLD = 2;
+// Estimated size of the OP_RETURN output value in bytes
+export const OP_RETURN_OUTPUT_VALUE_SIZE = 8;
+// Because our OP_RETURN data will always be less than 80 bytes, which is less than 0xfd (253),
+// the value serialization size will always be 1 byte.
+export const OP_RETURN_VALUE_SERIALIZE_SIZE = 1;
