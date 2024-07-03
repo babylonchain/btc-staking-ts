@@ -108,11 +108,14 @@ export class DataGenerator {
     return this.network;
   };
 
-  generateMockStakingScripts = (): StakingScripts => {
+  generateMockStakingScripts = (stakerKeyPair?: KeyPair): StakingScripts => {
+    if (!stakerKeyPair) {
+      stakerKeyPair = this.generateRandomKeyPair();
+    }
     const finalityProviderPk = this.generateRandomKeyPair().publicKeyNoCoord;
     const stakingTxTimelock = this.generateRandomStakingTerm();
-    const publicKeyNoCoord = this.generateRandomKeyPair().publicKeyNoCoord;
-    const committeeSize = Math.floor(Math.random() * 10) + 1;
+    const publicKeyNoCoord = stakerKeyPair.publicKeyNoCoord;
+    const committeeSize = this.getRandomIntegerBetween(1, 10);
     const globalParams = this.generateRandomGlobalParams(
       stakingTxTimelock,
       committeeSize,
@@ -188,12 +191,15 @@ export class DataGenerator {
   };
 
   generateRandomStakingTransaction = (
-    feeRate: number,
     stakerKeyPair: KeyPair,
+    feeRate: number = DEFAULT_TEST_FEE_RATE,
     stakingAmount?: number,
+    addressType?: "taproot" | "nativeSegwit",
   ): bitcoin.Transaction => {
     const {publicKey, publicKeyNoCoord: stakerPublicKeyNoCoord} = stakerKeyPair;
-    const { scriptPubKey, address: nativeSegwitAddress } = this.getNativeSegwitAddress(publicKey);
+    const { taproot, nativeSegwit } = this.getAddressAndScriptPubKey(publicKey);
+    const address = addressType === "taproot" ? taproot.address : nativeSegwit.address;
+    const scriptPubKey = addressType === "taproot" ? taproot.scriptPubKey : nativeSegwit.scriptPubKey;
     const fpPkHex = this.generateRandomKeyPair().publicKeyNoCoord;
 
     const committeeSize = this.getRandomIntegerBetween(1, 10);
@@ -221,8 +227,8 @@ export class DataGenerator {
 
     const { psbt } = stakingTransaction(
       stakingScripts,
-      stakingAmount? stakingAmount : this.getRandomIntegerBetween(1000, 100000),
-      nativeSegwitAddress,
+      stakingAmount? stakingAmount : this.getRandomIntegerBetween(1000, 100000) + 10000,
+      address,
       utxos,
       this.network,
       feeRate,
