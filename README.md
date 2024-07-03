@@ -10,7 +10,7 @@
 <br/>
 
 ## Notice
- 
+
 The library is in an experimental version and should not be used for production
 purposes and with real funds.
 
@@ -314,7 +314,7 @@ const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawTimelockUnbond
   scripts: {
     timelockScript,
     slashingScript,
-    unbondingScript,  
+    unbondingScript,
   },
   stakingTx,
   btcWallet.address,
@@ -331,19 +331,15 @@ const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawTimelockUnbond
 import { Psbt, Transaction } from "bitcoinjs-lib";
 import { withdrawEarlyUnbondedTransaction } from "btc-staking-ts";
 
-// unbonding transaction. Transaction
-const unbondingTx: Transaction = undefined;
-
-const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawEarlyUnbondedTransaction(
+const unsignedWithdrawalPsbt: { psbt: Psbt, fee: number } = withdrawEarlyUnbondedTransaction(
   scripts: {
     unbondingTimelockScript,
     slashingScript,
-    unbondingTx,  
   },
+  unbondingTx,
   withdrawalAddress,
   network,
   feeRate,
-  stakingOutputIndex,
 );
 
 const signedWithdrawalPsbt = await signPsbt(unsignedWithdrawalPsbt.psbt.toHex());
@@ -410,20 +406,16 @@ create unsigned unbonding slashing transaction
 import { Psbt, Transaction } from "bitcoinjs-lib";
 import { slashEarlyUnbondedTransaction } from "btc-staking-ts";
 
-const outputIndex: number = 0;
-
 const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashEarlyUnbondedTransaction(
   scripts: {
     slashingScript,
     unbondingTimelockScript,
   },
-  unbondingScriptTree,
   unbondingTx,
   slashingAddress,
   slashingRate,
   minimumSlashingFee,
   network,
-  outputIndex
 );
 
 const signedUnbondingSlashingPsbt = await signPsbt(unsignedUnbondingSlashingPsbt.psbt.toHex());

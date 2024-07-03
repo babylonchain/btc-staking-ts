@@ -110,21 +110,6 @@ describe("withdrawTransaction", () => {
 
       it(`${networkName} - should throw an error if output index is invalid`, () => {
         expect(() =>
-          withdrawEarlyUnbondedTransaction(
-            {
-              unbondingTimelockScript:
-                testData.stakingScripts.unbondingTimelockScript,
-              slashingScript: testData.stakingScripts.slashingScript,
-            },
-            testData.stakingTx,
-            testData.address,
-            network,
-            DEFAULT_TEST_FEE_RATE,
-            -1,
-          ),
-        ).toThrow("Output index must be bigger or equal to 0");
-
-        expect(() =>
           withdrawTimelockUnbondedTransaction(
             {
               timelockScript: testData.stakingScripts.timelockScript,
