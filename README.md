@@ -357,7 +357,7 @@ These are Babylon parameters and should be collected from the Babylon system.
 ```ts
 // The address to which the slashed funds should go to.
 const slashingAddress: string = "";
-// The slashing percentage rate.
+// The slashing percentage rate. It shall be decimal number between 0-1
 const slashingRate: number = 0;
 // The required fee for the slashing transaction in satoshis.
 const minimumSlashingFee: number = 500;

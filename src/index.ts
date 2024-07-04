@@ -431,7 +431,7 @@ export function slashTimelockUnbondedTransaction(
  * - scripts: Scripts used to construct the taproot output.
  *   - slashingScript: Script for the slashing condition.
  *   - unbondingTimelockScript: Script for the unbonding timelock condition.
- * - transaction: The original staking transaction.
+ * - transaction: The unbonding transaction.
  * - slashingAddress: The address to send the slashed funds to.
  * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
  * - minimumFee: The minimum fee for the transaction in satoshis.
@@ -442,7 +442,7 @@ export function slashTimelockUnbondedTransaction(
  * - psbt: The partially signed transaction (PSBT).
  *
  * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
- * @param {Transaction} unbondingTx - The original staking transaction.
+ * @param {Transaction} unbondingTx - The unbonding transaction.
  * @param {string} slashingAddress - The address to send the slashed funds to.
  * @param {number} slashingRate - The rate at which the funds are slashed.
  * @param {number} minimumSlashingFee - The minimum fee for the transaction in satoshis.
@@ -497,7 +497,7 @@ export function slashEarlyUnbondedTransaction(
  * - scripts: Scripts used to construct the taproot output.
  *   - slashingScript: Script for the slashing condition.
  *   - unbondingTimelockScript: Script for the unbonding timelock condition.
- * - transaction: The original staking transaction.
+ * - transaction: The original staking/unbonding transaction.
  * - slashingAddress: The address to send the slashed funds to.
  * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
  * - minimumFee: The minimum fee for the transaction in satoshis.
@@ -505,7 +505,7 @@ export function slashEarlyUnbondedTransaction(
  * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
  *
  * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
- * @param {Transaction} transaction - The original staking transaction.
+ * @param {Transaction} transaction - The original staking/unbonding transaction.
  * @param {string} slashingAddress - The address to send the slashed funds to.
  * @param {number} slashingRate - The rate at which the funds are slashed.
  * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
@@ -532,10 +532,18 @@ function slashingTransaction(
   if (slashingRate <= 0 || minimumFee <= 0) {
     throw new Error("Slashing rate and minimum fee must be bigger than 0");
   }
+  if (slashingRate >= 1) {
+    throw new Error("Slashing rate must be less than 1");
+  }
 
   // Check that outputIndex is bigger or equal to 0
   if (outputIndex < 0) {
     throw new Error("Output index must be bigger or equal to 0");
+  }
+
+  // Check that outputIndex is within the bounds of the transaction
+  if(!transaction.outs[outputIndex]) {
+    throw new Error("Output index is out of range");
   }
 
   const redeem = {
@@ -569,18 +577,22 @@ function slashingTransaction(
   });
 
   const userValue =
-    transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee;
+    Math.floor(transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee);
 
   // We need to verify that this is above 0
   if (userValue <= 0) {
     // If it is not, then an error is thrown and the user has to stake more
     throw new Error("Not enough funds to slash, stake more");
   }
+  // Make sure we slash at least 1 satoshi
+  if (transaction.outs[outputIndex].value * slashingRate < 1) {
+    throw new Error("Slashing rate is too low for this transaction");
+  }
 
   // Add the slashing output
   psbt.addOutput({
     address: slashingAddress,
-    value: transaction.outs[outputIndex].value * slashingRate,
+    value: Math.floor(transaction.outs[outputIndex].value * slashingRate),
   });
 
   // Change output contains unbonding timelock script
@@ -593,8 +605,7 @@ function slashingTransaction(
   // Add the change output
   psbt.addOutput({
     address: changeOutput.address!,
-    value:
-      transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee,
+    value: userValue,
   });
 
   return { psbt };
