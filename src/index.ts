@@ -147,7 +147,7 @@ export function stakingTransaction(
  * - scripts: Scripts used to construct the taproot output.
  *   - unbondingTimelockScript: Script for the unbonding timelock condition.
  *   - slashingScript: Script for the slashing condition.
- * - tx: The original staking transaction.
+ * - unbondingTx: The unbonding transaction.
  * - withdrawalAddress: The address to send the withdrawn funds to.
  * - network: The Bitcoin network.
  * - feeRate: The fee rate for the transaction in satoshis per byte.
@@ -157,11 +157,10 @@ export function stakingTransaction(
  * - psbt: The partially signed transaction (PSBT).
  *
  * @param {Object} scripts - The scripts used in the transaction.
- * @param {Transaction} tx - The original staking transaction.
+ * @param {Transaction} unbondingTx - The unbonding transaction.
  * @param {string} withdrawalAddress - The address to send the withdrawn funds to.
  * @param {networks.Network} network - The Bitcoin network.
  * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
- * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
  * @returns {PsbtTransactionResult} An object containing the partially signed transaction (PSBT).
  */
 export function withdrawEarlyUnbondedTransaction(
@@ -169,11 +168,10 @@ export function withdrawEarlyUnbondedTransaction(
     unbondingTimelockScript: Buffer;
     slashingScript: Buffer;
   },
-  tx: Transaction,
+  unbondingTx: Transaction,
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
-  outputIndex: number = 0,
 ): PsbtTransactionResult {
   const scriptTree: Taptree = [
     {
@@ -187,11 +185,11 @@ export function withdrawEarlyUnbondedTransaction(
       timelockScript: scripts.unbondingTimelockScript,
     },
     scriptTree,
-    tx,
+    unbondingTx,
     withdrawalAddress,
     network,
     feeRate,
-    outputIndex,
+    0, // unbonding always has a single output
   );
 }
 
@@ -376,7 +374,7 @@ function withdrawalTransaction(
  * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
  *
  * @param {Object} scripts - The scripts used in the transaction.
- * @param {Transaction} transaction - The original staking transaction.
+ * @param {Transaction} stakingTransaction - The original staking transaction.
  * @param {string} slashingAddress - The address to send the slashed funds to.
  * @param {number} slashingRate - The rate at which the funds are slashed.
  * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
@@ -444,12 +442,11 @@ export function slashTimelockUnbondedTransaction(
  * - psbt: The partially signed transaction (PSBT).
  *
  * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
- * @param {Transaction} transaction - The original staking transaction.
+ * @param {Transaction} unbondingTx - The original staking transaction.
  * @param {string} slashingAddress - The address to send the slashed funds to.
  * @param {number} slashingRate - The rate at which the funds are slashed.
- * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
+ * @param {number} minimumSlashingFee - The minimum fee for the transaction in satoshis.
  * @param {networks.Network} network - The Bitcoin network.
- * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
  * @returns {{ psbt: Psbt }} An object containing the partially signed transaction (PSBT).
  */
 export function slashEarlyUnbondedTransaction(
@@ -457,12 +454,11 @@ export function slashEarlyUnbondedTransaction(
     slashingScript: Buffer;
     unbondingTimelockScript: Buffer;
   },
-  stakingTransaction: Transaction,
+  unbondingTx: Transaction,
   slashingAddress: string,
   slashingRate: number,
-  minimumFee: number,
+  minimumSlashingFee: number,
   network: networks.Network,
-  outputIndex: number = 0,
 ): { psbt: Psbt } {
   const unbondingScriptTree: Taptree = [
     {
@@ -478,12 +474,12 @@ export function slashEarlyUnbondedTransaction(
       slashingScript: scripts.slashingScript,
     },
     unbondingScriptTree,
-    stakingTransaction,
+    unbondingTx,
     slashingAddress,
     slashingRate,
-    minimumFee,
+    minimumSlashingFee,
     network,
-    outputIndex,
+    0, // unbonding always has a single output
   );
 }
 
