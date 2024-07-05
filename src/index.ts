@@ -529,20 +529,21 @@ function slashingTransaction(
   psbt: Psbt;
 } {
   // Check that slashing rate and minimum fee are bigger than 0
-  if (slashingRate <= 0 || minimumFee <= 0) {
-    throw new Error("Slashing rate and minimum fee must be bigger than 0");
+  if (slashingRate <= 0 || slashingRate >= 1) {
+    throw new Error("Slashing rate must be between 0 and 1");
   }
-  if (slashingRate >= 1) {
-    throw new Error("Slashing rate must be less than 1");
+  // Minimum fee must be a postive integer
+  if (minimumFee <= 0 || !Number.isInteger(minimumFee)) {
+    throw new Error("Minimum fee must be a positve integer");
   }
 
   // Check that outputIndex is bigger or equal to 0
-  if (outputIndex < 0) {
-    throw new Error("Output index must be bigger or equal to 0");
+  if (outputIndex < 0 || !Number.isInteger(outputIndex)) {
+    throw new Error("Output index must be an integer bigger or equal to 0");
   }
 
   // Check that outputIndex is within the bounds of the transaction
-  if(!transaction.outs[outputIndex]) {
+  if (!transaction.outs[outputIndex]) {
     throw new Error("Output index is out of range");
   }
 
@@ -564,36 +565,41 @@ function slashingTransaction(
     controlBlock: p2tr.witness![p2tr.witness!.length - 1],
   };
 
+  const stakingAmount = transaction.outs[outputIndex].value;
+  // Slashing rate is a percentage of the staking amount, rounded down to
+  // the nearest integer to avoid sending decimal satoshis
+  const slashingAmount = Math.floor(stakingAmount * slashingRate);
+  const userFunds = stakingAmount - slashingAmount - minimumFee;
+
   const psbt = new Psbt({ network });
   psbt.addInput({
     hash: transaction.getHash(),
     index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: transaction.outs[outputIndex].value,
+      value: stakingAmount,
       script: transaction.outs[outputIndex].script,
     },
     tapLeafScript: [tapLeafScript],
   });
 
-  const userValue =
-    Math.floor(transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee);
-
   // We need to verify that this is above 0
-  if (userValue <= 0) {
+  if (userFunds <= 0) {
     // If it is not, then an error is thrown and the user has to stake more
     throw new Error("Not enough funds to slash, stake more");
   }
   // Make sure we slash at least 1 satoshi
-  if (transaction.outs[outputIndex].value * slashingRate < 1) {
+  if (stakingAmount * slashingRate < 1) {
     throw new Error("Slashing rate is too low for this transaction");
   }
 
   // Add the slashing output
-  psbt.addOutput({
-    address: slashingAddress,
-    value: Math.floor(transaction.outs[outputIndex].value * slashingRate),
-  });
+  if (slashingAmount > BTC_DUST_SAT) {
+    psbt.addOutput({
+      address: slashingAddress,
+      value: slashingAmount,
+    });
+  }
 
   // Change output contains unbonding timelock script
   const changeOutput = payments.p2tr({
@@ -601,11 +607,10 @@ function slashingTransaction(
     scriptTree: { output: scripts.unbondingTimelockScript },
     network,
   });
-
   // Add the change output
   psbt.addOutput({
     address: changeOutput.address!,
-    value: userValue,
+    value: userFunds,
   });
 
   return { psbt };
