@@ -5,7 +5,10 @@
  * @param numOfSlices - The number of slices (must be an integer).
  * @returns An array of integers representing the amount for each slice.
  */
-export const generateRandomAmountSlices = (totalAmount: number, numOfSlices: number): number[] => {
+export const generateRandomAmountSlices = (
+  totalAmount: number,
+  numOfSlices: number,
+): number[] => {
   if (numOfSlices <= 0) {
     throw new Error("Number of slices must be greater than zero.");
   }
@@ -24,4 +27,4 @@ export const generateRandomAmountSlices = (totalAmount: number, numOfSlices: num
   amounts.push(remainingAmount);
 
   return amounts;
-}
+};

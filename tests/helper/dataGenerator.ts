@@ -11,7 +11,6 @@ const ECPair = ECPairFactory(ecc);
 
 export const DEFAULT_TEST_FEE_RATE = 15;
 
-
 export interface KeyPair {
   privateKey: string;
   publicKey: string;
@@ -195,26 +194,39 @@ export class DataGenerator {
     feeRate: number = DEFAULT_TEST_FEE_RATE,
     stakingAmount?: number,
     addressType?: "taproot" | "nativeSegwit",
+    globalParam?: {
+      covenantPks: string[];
+      covenantQuorum: number;
+      unbondingTime: number;
+      tag: string;
+    },
   ): bitcoin.Transaction => {
-    const {publicKey, publicKeyNoCoord: stakerPublicKeyNoCoord} = stakerKeyPair;
+    const { publicKey, publicKeyNoCoord: stakerPublicKeyNoCoord } =
+      stakerKeyPair;
     const { taproot, nativeSegwit } = this.getAddressAndScriptPubKey(publicKey);
-    const address = addressType === "taproot" ? taproot.address : nativeSegwit.address;
-    const scriptPubKey = addressType === "taproot" ? taproot.scriptPubKey : nativeSegwit.scriptPubKey;
+    const address =
+      addressType === "taproot" ? taproot.address : nativeSegwit.address;
+    const scriptPubKey =
+      addressType === "taproot"
+        ? taproot.scriptPubKey
+        : nativeSegwit.scriptPubKey;
     const fpPkHex = this.generateRandomKeyPair().publicKeyNoCoord;
 
     const committeeSize = this.getRandomIntegerBetween(1, 10);
     const stakingTerm = this.generateRandomStakingTerm();
-    const globalParams = this.generateRandomGlobalParams(stakingTerm, committeeSize);
+    const param = globalParam
+      ? globalParam
+      : this.generateRandomGlobalParams(stakingTerm, committeeSize);
     const timeLock = this.getRandomIntegerBetween(1, stakingTerm);
 
     const stakingScriptData = new StakingScriptData(
       Buffer.from(stakerPublicKeyNoCoord, "hex"),
       [Buffer.from(fpPkHex, "hex")],
-      globalParams.covenantPks.map((pk: string) => Buffer.from(pk, "hex")),
-      globalParams.covenantQuorum,
+      param.covenantPks.map((pk: string) => Buffer.from(pk, "hex")),
+      param.covenantQuorum,
       stakingTerm,
       timeLock,
-      Buffer.from(globalParams.tag, "hex"),
+      Buffer.from(param.tag, "hex"),
     );
 
     const stakingScripts = stakingScriptData.buildScripts();
@@ -227,13 +239,15 @@ export class DataGenerator {
 
     const { psbt } = stakingTransaction(
       stakingScripts,
-      stakingAmount? stakingAmount : this.getRandomIntegerBetween(1000, 100000) + 10000,
+      stakingAmount
+        ? stakingAmount
+        : this.getRandomIntegerBetween(1000, 100000) + 10000,
       address,
       utxos,
       this.network,
       feeRate,
     );
-    
+
     return psbt
       .signAllInputs(stakerKeyPair.keyPair)
       .finalizeAllInputs()
@@ -264,7 +278,9 @@ export class DataGenerator {
   private getNativeSegwitAddress = (publicKey: string) => {
     // check the public key length is 66, otherwise throw
     if (publicKey.length !== 66) {
-      throw new Error("Invalid public key length for generating native segwit address");
+      throw new Error(
+        "Invalid public key length for generating native segwit address",
+      );
     }
     const internalPubkey = Buffer.from(publicKey, "hex");
     const { address, output: scriptPubKey } = bitcoin.payments.p2wpkh({

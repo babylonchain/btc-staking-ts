@@ -93,16 +93,23 @@ export class StakingScriptData {
     }
 
     // Check whether we have any duplicate keys
-    const allPks = [this.#stakerKey, ...this.#finalityProviderKeys, ...this.#covenantKeys];
+    const allPks = [
+      this.#stakerKey,
+      ...this.#finalityProviderKeys,
+      ...this.#covenantKeys,
+    ];
     const allPksSet = new Set(allPks);
     if (allPks.length !== allPksSet.size) {
-        return false;
+      return false;
     }
 
     // check that the threshold is above 0 and less than or equal to
     // the size of the covenant emulators set
-    if (this.#covenantThreshold == 0 || this.#covenantThreshold > this.#covenantKeys.length) {
-        return false;
+    if (
+      this.#covenantThreshold == 0 ||
+      this.#covenantThreshold > this.#covenantKeys.length
+    ) {
+      return false;
     }
 
     // check that maximum value for staking time is not greater than uint16 and above 0
@@ -117,7 +124,7 @@ export class StakingScriptData {
 
     // check that the magic bytes are 4 in length
     if (this.#magicBytes.length != MAGIC_BYTES_LEN) {
-        return false;
+      return false;
     }
 
     return true;

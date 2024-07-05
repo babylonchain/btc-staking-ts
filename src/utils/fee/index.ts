@@ -103,9 +103,14 @@ export const getStakingTxInputUTXOsAndFees = (
 export const getWithdrawTxFee = (feeRate: number): number => {
   const inputSize = P2TR_INPUT_SIZE;
   const outputSize = getEstimatedChangeOutputSize();
-  return feeRate * (
-    inputSize + outputSize + TX_BUFFER_SIZE_OVERHEAD + WITHDRAW_TX_BUFFER_SIZE
-  ) + rateBasedTxBufferFee(feeRate);
+  return (
+    feeRate *
+      (inputSize +
+        outputSize +
+        TX_BUFFER_SIZE_OVERHEAD +
+        WITHDRAW_TX_BUFFER_SIZE) +
+    rateBasedTxBufferFee(feeRate)
+  );
 };
 
 /**
@@ -143,7 +148,12 @@ const getEstimatedSize = (
       ? address.toOutputScript(output.address, network)
       : output.script;
     if (isOP_RETURN(script)) {
-      return acc + script.length + OP_RETURN_OUTPUT_VALUE_SIZE + OP_RETURN_VALUE_SERIALIZE_SIZE;
+      return (
+        acc +
+        script.length +
+        OP_RETURN_OUTPUT_VALUE_SIZE +
+        OP_RETURN_VALUE_SERIALIZE_SIZE
+      );
     }
     return acc + MAX_NON_LEGACY_OUTPUT_SIZE;
   }, 0);
@@ -154,11 +164,11 @@ const getEstimatedSize = (
 /**
  * Adds a buffer to the transaction size-based fee calculation if the fee rate is low.
  * Some wallets have a relayer fee requirement, which means if the fee rate is
- * less than or equal to WALLET_RELAY_FEE_RATE_THRESHOLD (2 satoshis per byte), 
- * there is a risk that the fee might not be sufficient to get the transaction relayed. 
- * To mitigate this risk, we add a buffer to the fee calculation to ensure that 
+ * less than or equal to WALLET_RELAY_FEE_RATE_THRESHOLD (2 satoshis per byte),
+ * there is a risk that the fee might not be sufficient to get the transaction relayed.
+ * To mitigate this risk, we add a buffer to the fee calculation to ensure that
  * the transaction can be relayed.
- * 
+ *
  * If the fee rate is less than or equal to WALLET_RELAY_FEE_RATE_THRESHOLD, a fixed buffer is added
  * (LOW_RATE_ESTIMATION_ACCURACY_BUFFER). If the fee rate is higher, no buffer is added.
  *

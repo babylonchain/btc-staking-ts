@@ -8,21 +8,22 @@ describe("Unbonding Transaction - ", () => {
   });
   testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
-    const stakingAmount = dataGenerator.getRandomIntegerBetween(1000, 100000) + 10000;
-    const stakingTx = dataGenerator.generateRandomStakingTransaction(stakerKeyPair, undefined, stakingAmount);
-    const stakingScripts = dataGenerator.generateMockStakingScripts(stakerKeyPair);
+    const stakingAmount =
+      dataGenerator.getRandomIntegerBetween(1000, 100000) + 10000;
+    const stakingTx = dataGenerator.generateRandomStakingTransaction(
+      stakerKeyPair,
+      undefined,
+      stakingAmount,
+    );
+    const stakingScripts =
+      dataGenerator.generateMockStakingScripts(stakerKeyPair);
     describe(`${networkName} - `, () => {
       it("should throw an error if the unbonding fee is not postive number", () => {
         expect(() =>
-          unbondingTransaction(
-            stakingScripts,
-            stakingTx,
-            0,
-            network,
-          ),
+          unbondingTransaction(stakingScripts, stakingTx, 0, network),
         ).toThrow("Unbonding fee must be bigger than 0");
       });
-  
+
       it("should throw if output index is negative", () => {
         expect(() =>
           unbondingTransaction(
@@ -34,7 +35,7 @@ describe("Unbonding Transaction - ", () => {
           ),
         ).toThrow("Output index must be bigger or equal to 0");
       });
-  
+
       it("should throw if not enough funds to cover unbonding fee", () => {
         const unbondingFee = stakingAmount + 1;
         expect(() =>
@@ -45,9 +46,11 @@ describe("Unbonding Transaction - ", () => {
             network,
             0,
           ),
-        ).toThrow("Not enough funds to cover the fee for unbonding transaction");
+        ).toThrow(
+          "Not enough funds to cover the fee for unbonding transaction",
+        );
       });
-  
+
       it("should throw if output is less than dust limit", () => {
         const unbondingFee = stakingAmount - BTC_DUST_SAT + 1;
         expect(() =>
@@ -60,10 +63,15 @@ describe("Unbonding Transaction - ", () => {
           ),
         ).toThrow("Output value is less than dust limit");
       });
-  
+
       it("should return psbt for unbonding transaction", () => {
-        const unbondingFee = stakingAmount - dataGenerator.getRandomIntegerBetween(1, stakingAmount - BTC_DUST_SAT);
-        const {psbt} = unbondingTransaction(
+        const unbondingFee =
+          stakingAmount -
+          dataGenerator.getRandomIntegerBetween(
+            1,
+            stakingAmount - BTC_DUST_SAT,
+          );
+        const { psbt } = unbondingTransaction(
           stakingScripts,
           stakingTx,
           unbondingFee,
