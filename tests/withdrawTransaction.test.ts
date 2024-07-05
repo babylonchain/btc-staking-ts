@@ -29,11 +29,13 @@ describe("withdrawTransaction", () => {
     const dataGenerator = network.dataGenerator;
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
 
-    const address = dataGenerator.getAddressAndScriptPubKey(stakerKeyPair.publicKey).nativeSegwit.address;
-    const stakingScripts = dataGenerator.generateMockStakingScripts(stakerKeyPair);
-    const stakingTx = dataGenerator.generateRandomStakingTransaction(
-      stakerKeyPair,
-    );
+    const address = dataGenerator.getAddressAndScriptPubKey(
+      stakerKeyPair.publicKey,
+    ).nativeSegwit.address;
+    const stakingScripts =
+      dataGenerator.generateMockStakingScripts(stakerKeyPair);
+    const stakingTx =
+      dataGenerator.generateRandomStakingTransaction(stakerKeyPair);
 
     return {
       keyPair: stakerKeyPair,
