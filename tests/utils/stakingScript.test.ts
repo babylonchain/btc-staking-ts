@@ -7,6 +7,7 @@ describe("stakingScript", () => {
     const pk3 = Buffer.from("17921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4", "hex");
     const pk4 = Buffer.from("76d1ae01f8fb6bf30108731c884cddcf57ef6eef2d9d9559e130894e0e40c62c", "hex");
     const pk5 = Buffer.from("49766ccd9e3cd94343e2040474a77fb37cdfd30530d05f9f1e96ae1e2102c86e", "hex");
+    const pk6 = Buffer.from("063deb187a4bf11c114cf825a4726e4c2c35fea5c4c44a20ff08a30a752ec7e0", "hex");
     const invalidPk = Buffer.from("6f13a6d104446520d1757caec13eaf6fbcf29f488c31e0107e7351d4994cd0", "hex");
     const emptyBuffer = Buffer.from("", "hex");
     const stakingTimeLock = 65535;
@@ -29,7 +30,7 @@ describe("stakingScript", () => {
       expect(() =>
         new StakingScriptData(
           pk1, // Staker Pk
-          [pk2, invalidPk], // Finality Provider Pks
+          [invalidPk], // Finality Provider Pks
           [pk3, pk4, pk5], // covenant Pks
           2,
           stakingTimeLock,
@@ -38,11 +39,26 @@ describe("stakingScript", () => {
         )
       ).toThrow("Invalid script data provided");
     });
+
+    it("should fail if more than one finality providers", () => {
+      expect(() =>
+        new StakingScriptData(
+          pk1, // Staker Pk
+          [pk2, pk6], // More than one FP Pks
+          [pk3, pk4, pk5], // covenant Pks
+          2,
+          stakingTimeLock,
+          unbondingTimeLock,
+          magicBytes
+        )
+      ).toThrow("Invalid script data provided");
+    });
+
     it("should fail if a covenant emulator key is not 32 bytes", () => {
       expect(() =>
         new StakingScriptData(
           pk1, // Staker Pk
-          [pk2, pk3], // Finality Provider Pks
+          [pk2], // Finality Provider Pks
           [pk4, invalidPk, pk5], // covenant Pks
           2,
           stakingTimeLock,
