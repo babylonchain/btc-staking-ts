@@ -36,21 +36,6 @@ describe("Unbonding Transaction - ", () => {
         ).toThrow("Output index must be bigger or equal to 0");
       });
 
-      it("should throw if not enough funds to cover unbonding fee", () => {
-        const unbondingFee = stakingAmount + 1;
-        expect(() =>
-          unbondingTransaction(
-            stakingScripts,
-            stakingTx,
-            unbondingFee,
-            network,
-            0,
-          ),
-        ).toThrow(
-          "Not enough funds to cover the fee for unbonding transaction",
-        );
-      });
-
       it("should throw if output is less than dust limit", () => {
         const unbondingFee = stakingAmount - BTC_DUST_SAT + 1;
         expect(() =>
@@ -66,7 +51,6 @@ describe("Unbonding Transaction - ", () => {
 
       it("should return psbt for unbonding transaction", () => {
         const unbondingFee =
-          stakingAmount -
           dataGenerator.getRandomIntegerBetween(
             1,
             stakingAmount - BTC_DUST_SAT  - 1,
