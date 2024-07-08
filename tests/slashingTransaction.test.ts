@@ -17,17 +17,17 @@ describe("slashingTransaction - ", () => {
     const stakingScripts =
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
     const stakingAmount =
-      dataGenerator.getRandomIntegerBetween(1000, 100000) + 10000;
+      dataGenerator.getRandomIntegerBetween(1000, 100000) + 1000000;
     const stakingTx = dataGenerator.generateRandomStakingTransaction(
       stakerKeyPair,
       DEFAULT_TEST_FEE_RATE,
       stakingAmount,
     );
-    const slashingRate = Math.random();
+    const slashingRate = dataGenerator.generateRandomSlashingRate();
     const slashingAmount = Math.floor(stakingAmount * slashingRate);
     const minSlashingFee = dataGenerator.getRandomIntegerBetween(
       1,
-      stakingAmount - slashingAmount - 1,
+      stakingAmount - slashingAmount - BTC_DUST_SAT - 1,
     );
     const defaultOutputIndex = 0;
 
@@ -164,49 +164,18 @@ describe("slashingTransaction - ", () => {
         ).toThrow("Output index is out of range");
       });
 
-      it("should throw not enough funds error if stake amount can not cover the slashing amount", () => {
-        // Make sure we can't cover the slashing amount
-        const amount = dataGenerator.getRandomIntegerBetween(
-          BTC_DUST_SAT,
-          BTC_DUST_SAT + 100000,
-        );
-        const txWithLimitedAmount =
-          dataGenerator.generateRandomStakingTransaction(
-            stakerKeyPair,
-            DEFAULT_TEST_FEE_RATE,
-            amount,
-          );
+      it("should throw error if user funds after slashing and fees is less than dust", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            txWithLimitedAmount,
+            stakingTx,
             slashingAddress,
             slashingRate,
-            Math.ceil(amount * (1 - slashingRate) + 1),
+            Math.ceil(stakingAmount * (1 - slashingRate) + 1),
             network,
             0,
           ),
-        ).toThrow("Not enough funds to slash, stake more");
-      });
-
-      it("should throw an error if slashing rate is too low", () => {
-        const amount = 1000; // this is to make sure greater than dust
-        const tx = dataGenerator.generateRandomStakingTransaction(
-          stakerKeyPair,
-          DEFAULT_TEST_FEE_RATE,
-          amount,
-        );
-        expect(() =>
-          slashTimelockUnbondedTransaction(
-            stakingScripts,
-            tx,
-            slashingAddress,
-            0.0001,
-            1,
-            network,
-            defaultOutputIndex,
-          ),
-        ).toThrow("Slashing rate is too low");
+        ).toThrow("User funds are less than dust limit");
       });
 
       it("should create the slashing time lock unbonded tx psbt successfully", () => {
@@ -313,21 +282,10 @@ describe("slashingTransaction - ", () => {
         ).toThrow("Minimum fee must be a positve integer");
       });
 
-      it("should throw not enough funds error if stake amount can not cover the slashing amount", () => {
-        // Make sure we can't cover the slashing amount
-        const amount = dataGenerator.getRandomIntegerBetween(
-          BTC_DUST_SAT,
-          BTC_DUST_SAT + 100000,
-        ); // +1 is to make sure cover the unbondingTx fee
-        const txWithLimitedAmount =
-          dataGenerator.generateRandomStakingTransaction(
-            stakerKeyPair,
-            DEFAULT_TEST_FEE_RATE,
-            amount,
-          );
+      it("should throw error if user funds is less than dust", () => {
         const unbondingTxWithLimitedAmount = unbondingTransaction(
           stakingScripts,
-          txWithLimitedAmount,
+          stakingTx,
           1,
           network,
         )
@@ -340,38 +298,24 @@ describe("slashingTransaction - ", () => {
             unbondingTxWithLimitedAmount,
             slashingAddress,
             slashingRate,
-            Math.ceil(amount * (1 - slashingRate) + 1),
+            Math.ceil(stakingAmount * (1 - slashingRate) + 1),
             network,
           ),
-        ).toThrow("Not enough funds to slash, stake more");
+        ).toThrow("User funds are less than dust limit");
       });
 
-      it("should throw an error if slashing rate is too low", () => {
-        const amount = 1000; // Make sure greater than dust
-        const tx = dataGenerator.generateRandomStakingTransaction(
-          stakerKeyPair,
-          DEFAULT_TEST_FEE_RATE,
-          amount,
-        );
-        const lowAmountUnbondingTx = unbondingTransaction(
-          stakingScripts,
-          tx,
-          1,
-          network,
-        )
-          .psbt.signAllInputs(stakerKeyPair.keyPair)
-          .finalizeAllInputs()
-          .extractTransaction();
-        expect(() =>
+      it("should throw if its slashing amount is less than dust", () => {
+        const smallSlashingRate = BTC_DUST_SAT / stakingAmount;
+        expect(() => 
           slashEarlyUnbondedTransaction(
             stakingScripts,
-            lowAmountUnbondingTx,
+            unbondingTx,
             slashingAddress,
-            0.0001,
-            1,
+            smallSlashingRate,
+            minSlashingFee,
             network,
-          ),
-        ).toThrow("Slashing rate is too low");
+          )
+        ).toThrow("Slashing amount is less than dust limit");
       });
 
       it("should create the slashing time lock unbonded tx psbt successfully", () => {
@@ -388,7 +332,7 @@ describe("slashingTransaction - ", () => {
 
         expect(psbt).toBeDefined();
         expect(psbt.txOutputs.length).toBe(2);
-        // first output shall send slashed amount to the slashing address
+        // first output shall send slashed amount to the slashing address (i.e burn output)
         expect(psbt.txOutputs[0].address).toBe(slashingAddress);
         expect(psbt.txOutputs[0].value).toBe(
           Math.floor(unbondingTxOutputValue * slashingRate),
@@ -406,35 +350,6 @@ describe("slashingTransaction - ", () => {
           Math.floor(unbondingTxOutputValue * slashingRate) -
           minSlashingFee;
         expect(psbt.txOutputs[1].value).toBe(expectedChangeOutputValue);
-      });
-
-      it("should create the slashingTx without slashing amount if its value is less than dust", () => {
-        const smallSlashingRate = BTC_DUST_SAT / stakingAmount;
-        const { psbt } = slashEarlyUnbondedTransaction(
-          stakingScripts,
-          unbondingTx,
-          slashingAddress,
-          smallSlashingRate,
-          minSlashingFee,
-          network,
-        );
-
-        const unbondingTxOutputValue = unbondingTx.outs[0].value;
-
-        expect(psbt).toBeDefined();
-        expect(psbt.txOutputs.length).toBe(1);
-        // first output shall send slashed amount to the slashing address
-        const changeOutput = payments.p2tr({
-          internalPubkey,
-          scriptTree: { output: stakingScripts.unbondingTimelockScript },
-          network,
-        });
-        expect(psbt.txOutputs[0].address).toBe(changeOutput.address);
-        const expectedChangeOutputValue =
-          unbondingTxOutputValue -
-          Math.floor(unbondingTxOutputValue * smallSlashingRate) -
-          minSlashingFee;
-        expect(psbt.txOutputs[0].value).toBe(expectedChangeOutputValue);
       });
     });
   });

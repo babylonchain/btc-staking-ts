@@ -507,7 +507,7 @@ export function slashEarlyUnbondedTransaction(
  * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
  * @param {Transaction} transaction - The original staking/unbonding transaction.
  * @param {string} slashingAddress - The address to send the slashed funds to.
- * @param {number} slashingRate - The rate at which the funds are slashed.
+ * @param {number} slashingRate - The rate at which the funds are slashed. Two decimal places, otherwise it will be rounded down.
  * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
  * @param {networks.Network} network - The Bitcoin network.
  * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
@@ -532,6 +532,8 @@ function slashingTransaction(
   if (slashingRate <= 0 || slashingRate >= 1) {
     throw new Error("Slashing rate must be between 0 and 1");
   }
+  // Round the slashing rate to two decimal places
+  slashingRate = parseFloat(slashingRate.toFixed(2));
   // Minimum fee must be a postive integer
   if (minimumFee <= 0 || !Number.isInteger(minimumFee)) {
     throw new Error("Minimum fee must be a positve integer");
@@ -569,7 +571,15 @@ function slashingTransaction(
   // Slashing rate is a percentage of the staking amount, rounded down to
   // the nearest integer to avoid sending decimal satoshis
   const slashingAmount = Math.floor(stakingAmount * slashingRate);
+  if (slashingAmount <= BTC_DUST_SAT) {
+    throw new Error("Slashing amount is less than dust limit");
+  }
+
   const userFunds = stakingAmount - slashingAmount - minimumFee;
+  if (userFunds <= BTC_DUST_SAT) {
+    throw new Error("User funds are less than dust limit");
+  }
+ 
 
   const psbt = new Psbt({ network });
   psbt.addInput({
@@ -583,23 +593,12 @@ function slashingTransaction(
     tapLeafScript: [tapLeafScript],
   });
 
-  // We need to verify that this is above 0
-  if (userFunds <= 0) {
-    // If it is not, then an error is thrown and the user has to stake more
-    throw new Error("Not enough funds to slash, stake more");
-  }
-  // Make sure we slash at least 1 satoshi
-  if (stakingAmount * slashingRate < 1) {
-    throw new Error("Slashing rate is too low for this transaction");
-  }
 
   // Add the slashing output
-  if (slashingAmount > BTC_DUST_SAT) {
-    psbt.addOutput({
-      address: slashingAddress,
-      value: slashingAmount,
-    });
-  }
+  psbt.addOutput({
+    address: slashingAddress,
+    value: slashingAmount,
+  });
 
   // Change output contains unbonding timelock script
   const changeOutput = payments.p2tr({
