@@ -9,11 +9,6 @@
 </p>
 <br/>
 
-## Notice
-
-The library is in an experimental version and should not be used for production
-purposes and with real funds.
-
 ## Installation
 
 ```console
