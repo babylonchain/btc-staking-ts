@@ -21,6 +21,10 @@ describe("stakingScript", () => {
     "49766ccd9e3cd94343e2040474a77fb37cdfd30530d05f9f1e96ae1e2102c86e",
     "hex",
   );
+  const pk6 = Buffer.from(
+    "063deb187a4bf11c114cf825a4726e4c2c35fea5c4c44a20ff08a30a752ec7e0",
+    "hex",
+  );
   const invalidPk = Buffer.from(
     "6f13a6d104446520d1757caec13eaf6fbcf29f488c31e0107e7351d4994cd0",
     "hex",
@@ -45,31 +49,44 @@ describe("stakingScript", () => {
       ).toThrow("Invalid script data provided");
     });
     it("should fail if a finality provider key is not 32 bytes", () => {
-      expect(
-        () =>
-          new StakingScriptData(
-            pk1, // Staker Pk
-            [pk2, invalidPk], // Finality Provider Pks
-            [pk3, pk4, pk5], // covenant Pks
-            2,
-            stakingTimeLock,
-            unbondingTimeLock,
-            magicBytes,
-          ),
+      expect(() =>
+        new StakingScriptData(
+          pk1, // Staker Pk
+          [invalidPk], // Finality Provider Pks
+          [pk3, pk4, pk5], // covenant Pks
+          2,
+          stakingTimeLock,
+          unbondingTimeLock,
+          magicBytes
+        )
       ).toThrow("Invalid script data provided");
     });
+
+    it("should fail if more than one finality providers", () => {
+      expect(() =>
+        new StakingScriptData(
+          pk1, // Staker Pk
+          [pk2, pk6], // More than one FP Pks
+          [pk3, pk4, pk5], // covenant Pks
+          2,
+          stakingTimeLock,
+          unbondingTimeLock,
+          magicBytes
+        )
+      ).toThrow("Invalid script data provided");
+    });
+
     it("should fail if a covenant emulator key is not 32 bytes", () => {
-      expect(
-        () =>
-          new StakingScriptData(
-            pk1, // Staker Pk
-            [pk2, pk3], // Finality Provider Pks
-            [pk4, invalidPk, pk5], // covenant Pks
-            2,
-            stakingTimeLock,
-            unbondingTimeLock,
-            magicBytes,
-          ),
+      expect(() =>
+        new StakingScriptData(
+          pk1, // Staker Pk
+          [pk2], // Finality Provider Pks
+          [pk4, invalidPk, pk5], // covenant Pks
+          2,
+          stakingTimeLock,
+          unbondingTimeLock,
+          magicBytes
+        )
       ).toThrow("Invalid script data provided");
     });
     it("should fail if the covenant emulators threshold is 0", () => {

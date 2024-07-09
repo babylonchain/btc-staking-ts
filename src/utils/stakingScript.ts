@@ -127,6 +127,11 @@ export class StakingScriptData {
       return false;
     }
 
+    // Only accept a single finality provider key for now
+    if (this.#finalityProviderKeys.length != 1) {
+      return false;
+    }
+
     return true;
   }
 
