@@ -676,11 +676,6 @@ export function unbondingTransaction(
     network,
   });
   const outputValue = stakingTx.outs[outputIndex].value - transactionFee;
-  if (outputValue < 0) {
-    throw new Error(
-      "Not enough funds to cover the fee for unbonding transaction",
-    );
-  }
   if (outputValue < BTC_DUST_SAT) {
     throw new Error("Output value is less than dust limit");
   }
