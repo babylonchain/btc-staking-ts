@@ -142,10 +142,7 @@ export class DataGenerator {
     return scripts;
   };
 
-  generateRandomUTXOs = (
-    balance: number,
-    numberOfUTXOs: number,
-  ): UTXO[] => {
+  generateRandomUTXOs = (balance: number, numberOfUTXOs: number): UTXO[] => {
     const slices = generateRandomAmountSlices(balance, numberOfUTXOs);
     return slices.map((v) => {
       const { taproot, nativeSegwit } = this.getAddressAndScriptPubKey(
@@ -187,7 +184,9 @@ export class DataGenerator {
   private getNativeSegwitAddress = (publicKey: string) => {
     // check the public key length is 66, otherwise throw
     if (publicKey.length !== 66) {
-      throw new Error("Invalid public key length for generating native segwit address");
+      throw new Error(
+        "Invalid public key length for generating native segwit address",
+      );
     }
     const internalPubkey = Buffer.from(publicKey, "hex");
     const { address, output: scriptPubKey } = bitcoin.payments.p2wpkh({

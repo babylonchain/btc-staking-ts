@@ -26,7 +26,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
 
     it("should throw if total utxos value can not cover the staking value + fee", () => {
       const availableUTXOs: UTXO[] = dataGenerator.generateRandomUTXOs(
-       randomAmount + 1,
+        randomAmount + 1,
         Math.floor(Math.random() * 10) + 1,
       );
       const outputs = buildStakingOutput(mockScripts, network, randomAmount);
@@ -38,7 +38,9 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
           feeRate,
           outputs,
         ),
-      ).toThrow("Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees");
+      ).toThrow(
+        "Insufficient funds: unable to gather enough UTXOs to cover the staking amount and fees",
+      );
     });
 
     it("should successfully select the correct UTXOs and calculate the fee", () => {
