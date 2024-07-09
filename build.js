@@ -1,22 +1,33 @@
 import { build } from "esbuild";
-import pkg from "./package.json" assert { type: "json" };
-const { dependencies } = pkg;
+import { readFile } from "fs/promises";
+import path from "path";
 
-const shared = {
-  entryPoints: ["src/index.ts"],
-  bundle: true,
-  external: Object.keys(dependencies || {}),
-};
+async function main() {
+  const pkgPath = path.resolve("./package.json");
+  const pkg = JSON.parse(await readFile(pkgPath, "utf8"));
+  const { dependencies } = pkg;
 
-build({
-  ...shared,
-  platform: "node", // for CJS
-  outfile: "dist/index.cjs",
-});
+  const shared = {
+    entryPoints: ["src/index.ts"],
+    bundle: true,
+    external: Object.keys(dependencies || {}),
+  };
 
-build({
-  ...shared,
-  platform: "node", // for ESM
-  outfile: "dist/index.js",
-  format: "esm",
+  await build({
+    ...shared,
+    platform: "node", // for CJS
+    outfile: "dist/index.cjs",
+  });
+
+  await build({
+    ...shared,
+    platform: "node", // for ESM
+    outfile: "dist/index.js",
+    format: "esm",
+  });
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
