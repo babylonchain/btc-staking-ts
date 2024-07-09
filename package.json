@@ -1,6 +1,6 @@
 {
   "name": "btc-staking-ts",
-  "version": "0.3.0-canary.3",
+  "version": "0.3.0-canary.4",
   "description": "Library exposing methods for the creation and consumption of Bitcoin transactions pertaining to Babylon's Bitcoin Staking protocol.",
   "module": "dist/index.js",
   "main": "dist/index.cjs",
