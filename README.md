@@ -1,5 +1,5 @@
 <p align="center">
-    <img alt="Babylon Logo" src="assets/logo-circle.png" width="100" />
+    <img alt="Babylon Logo" src="https://github.com/babylonchain/btc-staking-ts/assets/11439706/2a9c2b73-6ed8-46f7-b1ec-b3a3ea744bb0" width="100" />
     <h3 align="center">btc-staking-ts</h3>
     <p align="center">Babylon Bitcoin Staking Protocol</p>
     <p align="center"><strong>TypeScript</strong> library</p>
@@ -8,11 +8,6 @@
     </p>
 </p>
 <br/>
-
-## Notice
- 
-The library is in an experimental version and should not be used for production
-purposes and with real funds.
 
 ## Installation
 
@@ -314,7 +309,7 @@ const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawTimelockUnbond
   scripts: {
     timelockScript,
     slashingScript,
-    unbondingScript,  
+    unbondingScript,
   },
   stakingTx,
   btcWallet.address,
@@ -331,19 +326,15 @@ const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawTimelockUnbond
 import { Psbt, Transaction } from "bitcoinjs-lib";
 import { withdrawEarlyUnbondedTransaction } from "btc-staking-ts";
 
-// unbonding transaction. Transaction
-const unbondingTx: Transaction = undefined;
-
-const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawEarlyUnbondedTransaction(
+const unsignedWithdrawalPsbt: { psbt: Psbt, fee: number } = withdrawEarlyUnbondedTransaction(
   scripts: {
     unbondingTimelockScript,
     slashingScript,
-    unbondingTx,  
   },
+  unbondingTx,
   withdrawalAddress,
   network,
   feeRate,
-  stakingOutputIndex,
 );
 
 const signedWithdrawalPsbt = await signPsbt(unsignedWithdrawalPsbt.psbt.toHex());
@@ -410,20 +401,16 @@ create unsigned unbonding slashing transaction
 import { Psbt, Transaction } from "bitcoinjs-lib";
 import { slashEarlyUnbondedTransaction } from "btc-staking-ts";
 
-const outputIndex: number = 0;
-
 const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashEarlyUnbondedTransaction(
   scripts: {
     slashingScript,
     unbondingTimelockScript,
   },
-  unbondingScriptTree,
   unbondingTx,
   slashingAddress,
   slashingRate,
   minimumSlashingFee,
   network,
-  outputIndex
 );
 
 const signedUnbondingSlashingPsbt = await signPsbt(unsignedUnbondingSlashingPsbt.psbt.toHex());

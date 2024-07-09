@@ -52,7 +52,7 @@ describe("scriptUtils", () => {
       });
 
       it("should return P2TR_INPUT_SIZE for a valid P2TR script", () => {
-        const pk = dataGenerator.generateRandomKeyPair(true).publicKey;
+        const pk = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
         const { output } = payments.p2tr({
           internalPubkey: Buffer.from(pk, "hex"),
         });
