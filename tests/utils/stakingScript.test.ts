@@ -1,3 +1,4 @@
+import { opcodes, script } from "bitcoinjs-lib";
 import { StakingScriptData } from "../../src/utils/stakingScript";
 
 describe("stakingScript", () => {
@@ -270,7 +271,13 @@ describe("stakingScript", () => {
         magicBytes,
       );
       const timelockScript = stakingScriptData.buildStakingTimelockScript();
-      expect(timelockScript).toBeInstanceOf(Buffer);
+      const decompiled = script.decompile(timelockScript);
+      expect(decompiled).toEqual([
+        pk1,
+        opcodes.OP_CHECKSIGVERIFY,
+        script.number.encode(stakingTimeLock),
+        opcodes.OP_CHECKSEQUENCEVERIFY,
+      ]);
     });
 
     it("should build valid unbonding timelock script", () => {
@@ -285,35 +292,86 @@ describe("stakingScript", () => {
       );
       const unbondingTimelockScript =
         stakingScriptData.buildUnbondingTimelockScript();
-      expect(unbondingTimelockScript).toBeInstanceOf(Buffer);
+      const decompiled = script.decompile(unbondingTimelockScript);
+      expect(decompiled).toEqual([
+        pk1,
+        opcodes.OP_CHECKSIGVERIFY,
+        script.number.encode(unbondingTimeLock),
+        opcodes.OP_CHECKSEQUENCEVERIFY,
+      ]);
     });
 
     it("should build valid unbonding script", () => {
+      const pks = [pk3, pk4, pk5];
       const stakingScriptData = new StakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
-        [pk3, pk4, pk5], // covenant Pks
+        pks, // covenant Pks
         2,
         stakingTimeLock,
         unbondingTimeLock,
         magicBytes,
       );
+
+      const sortedPks = pks.sort(Buffer.compare);
+
       const unbondingScript = stakingScriptData.buildUnbondingScript();
-      expect(unbondingScript).toBeInstanceOf(Buffer);
+      const decompiled = script.decompile(unbondingScript);
+
+      const expectedScript = script.decompile(
+        Buffer.concat([
+          script.compile([pk1, opcodes.OP_CHECKSIGVERIFY]),
+          script.compile([
+            sortedPks[0],
+            opcodes.OP_CHECKSIG,
+            sortedPks[1],
+            opcodes.OP_CHECKSIGADD,
+            sortedPks[2],
+            opcodes.OP_CHECKSIGADD,
+            script.number.encode(2),
+            opcodes.OP_NUMEQUAL,
+          ]),
+        ]),
+      );
+
+      expect(decompiled).toEqual(expectedScript);
     });
 
     it("should build valid slashing script", () => {
+      const pks = [pk3, pk4, pk5];
       const stakingScriptData = new StakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
-        [pk3, pk4, pk5], // covenant Pks
+        pks, // covenant Pks
         2,
         stakingTimeLock,
         unbondingTimeLock,
         magicBytes,
       );
+
+      const sortedPks = pks.sort(Buffer.compare);
+
       const slashingScript = stakingScriptData.buildSlashingScript();
-      expect(slashingScript).toBeInstanceOf(Buffer);
+      const decompiled = script.decompile(slashingScript);
+
+      const expectedScript = script.decompile(
+        Buffer.concat([
+          script.compile([pk1, opcodes.OP_CHECKSIGVERIFY]),
+          script.compile([pk2, opcodes.OP_CHECKSIGVERIFY]),
+          script.compile([
+            sortedPks[0],
+            opcodes.OP_CHECKSIG,
+            sortedPks[1],
+            opcodes.OP_CHECKSIGADD,
+            sortedPks[2],
+            opcodes.OP_CHECKSIGADD,
+            script.number.encode(2),
+            opcodes.OP_NUMEQUAL,
+          ]),
+        ]),
+      );
+
+      expect(decompiled).toEqual(expectedScript);
     });
 
     it("should build valid data embed script", () => {
@@ -327,7 +385,17 @@ describe("stakingScript", () => {
         magicBytes,
       );
       const dataEmbedScript = stakingScriptData.buildDataEmbedScript();
-      expect(dataEmbedScript).toBeInstanceOf(Buffer);
+      const decompiled = script.decompile(dataEmbedScript);
+      expect(decompiled).toEqual([
+        opcodes.OP_RETURN,
+        Buffer.concat([
+          magicBytes,
+          Buffer.from([0]), // Version byte
+          pk1,
+          pk2,
+          Buffer.from([stakingTimeLock >> 8, stakingTimeLock & 0xff]), // Staking timelock in big endian
+        ]),
+      ]);
     });
 
     it("should build valid staking scripts", () => {
