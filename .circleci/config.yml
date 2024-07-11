@@ -10,7 +10,7 @@ jobs:
     steps:
       - checkout
       - node/install:
-          node-version: '21.7'
+          node-version: '22.3'
       - run:
           name: Install requirements
           command: npm install
@@ -23,7 +23,7 @@ jobs:
     steps:
       - checkout
       - node/install:
-          node-version: '21.7'
+          node-version: '22.3'
       - run:
           name: Install requirements
           command: npm install
@@ -53,7 +53,7 @@ jobs:
     steps:
       - checkout
       - node/install:
-          node-version: '21.7'
+          node-version: '22.3'
       - run:
           name: Authenticate with NPM registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
