@@ -31,7 +31,7 @@ describe("stakingScript", () => {
       expect(() =>
         new StakingScriptData(
           pk1, // Staker Pk
-          [invalidPk], // Finality Provider Pks
+          [pk2, invalidPk], // Finality Provider Pks
           [pk3, pk4, pk5], // covenant Pks
           2,
           stakingTimeLock,
@@ -41,25 +41,26 @@ describe("stakingScript", () => {
       ).toThrow("Invalid script data provided");
     });
 
-    it("should fail if more than one finality providers", () => {
+    it("should throw if more than one finality providers when building data embed script", () => {
+      const script = new StakingScriptData(
+        pk1, // Staker Pk
+        [pk2, pk6], // More than one FP Pks
+        [pk3, pk4, pk5], // covenant Pks
+        2,
+        stakingTimeLock,
+        unbondingTimeLock,
+        magicBytes
+      );
       expect(() =>
-        new StakingScriptData(
-          pk1, // Staker Pk
-          [pk2, pk6], // More than one FP Pks
-          [pk3, pk4, pk5], // covenant Pks
-          2,
-          stakingTimeLock,
-          unbondingTimeLock,
-          magicBytes
-        )
-      ).toThrow("Invalid script data provided");
+        script.buildDataEmbedScript()
+      ).toThrow("Only a single finality provider key is supported");
     });
 
     it("should fail if a covenant emulator key is not 32 bytes", () => {
       expect(() =>
         new StakingScriptData(
           pk1, // Staker Pk
-          [pk2], // Finality Provider Pks
+          [pk2, pk3], // Finality Provider Pks
           [pk4, invalidPk, pk5], // covenant Pks
           2,
           stakingTimeLock,

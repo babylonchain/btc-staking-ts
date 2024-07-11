@@ -127,11 +127,6 @@ export class StakingScriptData {
       return false;
     }
 
-    // Only accept a single finality provider key for now
-    if (this.#finalityProviderKeys.length != 1) {
-      return false;
-    }
-
     return true;
   }
 
@@ -235,9 +230,15 @@ export class StakingScriptData {
    *    OP_RETURN || <serializedStakingData>
    * where serializedStakingData is the concatenation of:
    *    MagicBytes || Version || StakerPublicKey || FinalityProviderPublicKey || StakingTimeLock
+   * Note: Only a single finality provider key is supported for now in phase 1
+   * @throws {Error} If the number of finality provider keys is not equal to 1.
    * @returns {Buffer} The compiled data embed script.
    */
   buildDataEmbedScript(): Buffer {
+    // Only accept a single finality provider key for now
+    if (this.#finalityProviderKeys.length != 1) {
+      throw new Error("Only a single finality provider key is supported");
+    }
     // 1 byte for version
     const version = Buffer.alloc(1);
     version.writeUInt8(0);
