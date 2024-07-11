@@ -31,7 +31,7 @@ describe("stakingScript", () => {
       expect(() =>
         new StakingScriptData(
           pk1, // Staker Pk
-          [invalidPk], // Finality Provider Pks
+          [pk2, invalidPk], // Finality Provider Pks
           [pk3, pk4, pk5], // covenant Pks
           2,
           stakingTimeLock,
@@ -59,7 +59,7 @@ describe("stakingScript", () => {
       expect(() =>
         new StakingScriptData(
           pk1, // Staker Pk
-          [pk2], // Finality Provider Pks
+          [pk2, pk3], // Finality Provider Pks
           [pk4, invalidPk, pk5], // covenant Pks
           2,
           stakingTimeLock,
