@@ -53,7 +53,7 @@ describe("Unbonding Transaction - ", () => {
         const unbondingFee =
           dataGenerator.getRandomIntegerBetween(
             1,
-            stakingAmount - BTC_DUST_SAT  - 1,
+            stakingAmount - BTC_DUST_SAT - 1,
           );
         const { psbt } = unbondingTransaction(
           stakingScripts,
